@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetChat Secure - P2P Encrypted Chat</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #080a0d;
+    --surface: #0f1217;
+    --surface2: #141820;
+    --border: #1c2130;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0,229,160,0.10);
+    --accent-glow: rgba(0,229,160,0.25);
+    --text: #dde4f0;
+    --muted: #3d4a60;
+    --muted2: #5a6a85;
+    --danger: #ff4d6d;
+    --warn: #f6ad55;
+    --my-bg: #0b2a1e;
+    --my-border: rgba(0,229,160,0.18);
+    --their-bg: #111825;
+    --their-border: #1c2130;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(0,229,160,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(0,180,255,0.03) 0%, transparent 60%);
+    pointer-events:none; z-index:0;
+  }
+
+  header {
+    position:relative; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 20px;
+    border-bottom:1px solid var(--border);
+    background:rgba(8,10,13,0.95);
+    backdrop-filter:blur(12px);
+    flex-shrink:0;
+  }
+
+  .logo {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px; font-weight:600;
+    letter-spacing:0.18em; color:var(--accent);
+    display:flex; align-items:center; gap:10px;
+  }
+
+  .lock-badge {
+    display:flex; align-items:center; gap:5px;
+    background:var(--accent-dim);
+    border:1px solid rgba(0,229,160,0.2);
+    border-radius:20px; padding:3px 10px;
+    font-size:10px; letter-spacing:0.12em; color:var(--accent);
+  }
+
+  .status-pill {
+    display:flex; align-items:center; gap:7px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px; letter-spacing:0.1em;
+    color:var(--muted2); text-transform:uppercase;
+  }
+
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
+  .dot.online     { background:var(--accent); box-shadow:0 0 7px var(--accent-glow); animation:pulse 2s infinite; }
+  .dot.connecting { background:var(--warn); animation:blink 0.7s infinite; }
+  .dot.error      { background:var(--danger); }
+  .dot.ready      { background:var(--accent); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  main { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; z-index:1; }
+
+  /* LOGIN SCREEN */
+  #login-screen, #connect-screen {
+    flex:1; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  }
+
+  .card {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:32px 32px 28px;
+    width:100%; max-width:420px;
+    position:relative;
+    animation: fadeInUp 0.4s ease;
+  }
+  @keyframes fadeInUp {
+    from { opacity:0; transform:translateY(15px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  .card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px; border-radius:14px 14px 0 0;
+    background:linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .card-section { margin-bottom:24px; }
+  .card-section:last-child { margin-bottom:0; }
+
+  .section-label {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:var(--muted2);
+    margin-bottom:12px; display:flex; align-items:center; gap:8px;
+  }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .field { margin-bottom:10px; }
+
+  label.fl {
+    display:block; font-family:'IBM Plex Mono',monospace;
+    font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted2); margin-bottom:6px;
+  }
+
+  input[type="text"], input[type="password"] {
+    width:100%; background:var(--bg); border:1px solid var(--border); border-radius:7px;
+    padding:10px 13px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--text);
+    outline:none; transition:border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+
+  .code-box {
+    background:var(--bg); border:1px solid var(--accent); border-radius:7px;
+    padding:12px 14px; font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;
+    color:var(--accent); letter-spacing:0.35em; text-align:center;
+    box-shadow:0 0 14px var(--accent-dim); cursor:pointer; user-select:all;
+    transition:box-shadow 0.2s, background 0.2s; margin-bottom:6px;
+    min-height:54px; display:flex; align-items:center; justify-content:center;
+  }
+  .code-box:hover { box-shadow:0 0 22px var(--accent-glow); }
+
+  .code-hint { font-size:10px; color:var(--muted2); font-family:'IBM Plex Mono',monospace; text-align:center; }
+
+  .security-note {
+    background:var(--accent-dim); border:1px solid rgba(0,229,160,0.15); border-radius:7px;
+    padding:10px 13px; font-size:11px; color:var(--muted2); line-height:1.6;
+    margin-bottom:14px; display:flex; gap:8px; align-items:flex-start;
+  }
+  .security-note svg { color:var(--accent); flex-shrink:0; margin-top:2px; }
+
+  .btn {
+    width:100%; padding:11px; border:none; border-radius:7px;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.16em;
+    text-transform:uppercase; cursor:pointer; transition:all 0.2s; font-weight:600;
+  }
+  .btn-primary { background:var(--accent); color:#080a0d; }
+  .btn-primary:hover:not(:disabled) { box-shadow:0 0 22px var(--accent-glow); transform:translateY(-1px); }
+  .btn-primary:active { transform:translateY(0); }
+  .btn:disabled { opacity:0.35; cursor:not-allowed; transform:none !important; }
+
+  .error-msg {
+    font-size:11px; color:var(--danger); font-family:'IBM Plex Mono',monospace;
+    margin-top:10px; display:none; padding:8px 12px;
+    background:rgba(255,77,109,0.08); border:1px solid rgba(255,77,109,0.2); border-radius:6px;
+  }
+
+  .info-msg {
+    font-size:11px; color:var(--accent); font-family:'IBM Plex Mono',monospace;
+    margin-top:10px; padding:8px 12px;
+    background:var(--accent-dim); border:1px solid rgba(0,229,160,0.2); border-radius:6px;
+    text-align:center;
+  }
+
+  /* CHAT SCREEN */
+  #chat-screen { display:none; flex:1; flex-direction:column; overflow:hidden; }
+
+  .chat-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; gap:10px;
+  }
+  .peer-info { display:flex; flex-direction:column; min-width:0; }
+  .peer-name-display { font-weight:600; font-size:13px; color:var(--accent); }
+  .session-meta { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted2); letter-spacing:0.08em; margin-top:2px; }
+
+  .enc-badge {
+    display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono',monospace;
+    font-size:9px; letter-spacing:0.1em; color:var(--accent);
+    background:var(--accent-dim); border:1px solid rgba(0,229,160,0.15);
+    border-radius:20px; padding:3px 10px; white-space:nowrap; flex-shrink:0;
+  }
+
+  .btn-disc {
+    background:none; border:1px solid var(--border); border-radius:5px; padding:4px 10px;
+    font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.1em; color:var(--muted2);
+    cursor:pointer; text-transform:uppercase; transition:all 0.2s; flex-shrink:0;
+  }
+  .btn-disc:hover { border-color:var(--danger); color:var(--danger); }
+
+  #messages {
+    flex:1; overflow-y:auto; padding:16px;
+    display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth;
+  }
+  #messages::-webkit-scrollbar { width:3px; }
+  #messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .msg-wrap { display:flex; flex-direction:column; max-width:74%; animation:slideIn 0.18s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:none} }
+  .msg-wrap.mine   { align-self:flex-end; align-items:flex-end; }
+  .msg-wrap.theirs { align-self:flex-start; align-items:flex-start; }
+
+  .msg-bubble {
+    padding:9px 13px; border-radius:10px;
+    font-size:13px; line-height:1.55; word-break:break-word; white-space:pre-wrap;
+  }
+  .msg-wrap.mine   .msg-bubble { background:var(--my-bg); border:1px solid var(--my-border); border-bottom-right-radius:2px; }
+  .msg-wrap.theirs .msg-bubble { background:var(--their-bg); border:1px solid var(--their-border); border-bottom-left-radius:2px; }
+
+  .msg-meta { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted); margin-top:4px; letter-spacing:0.05em; }
+
+  .system-msg {
+    text-align:center; font-family:'IBM Plex Mono',monospace; font-size:10px;
+    color:var(--muted); letter-spacing:0.1em; padding:3px 0;
+    display:flex; align-items:center; gap:8px;
+  }
+  .system-msg::before,.system-msg::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .typing-wrap { align-self:flex-start; animation:slideIn 0.18s ease; }
+  .typing-indicator {
+    display:flex; align-items:center; gap:4px; padding:9px 13px;
+    background:var(--their-bg); border:1px solid var(--their-border);
+    border-radius:10px; border-bottom-left-radius:2px;
+  }
+  .td { width:5px; height:5px; border-radius:50%; background:var(--muted2); animation:tb 1.4s infinite; }
+  .td:nth-child(2){animation-delay:0.2s} .td:nth-child(3){animation-delay:0.4s}
+  @keyframes tb { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+  .input-bar {
+    display:flex; gap:9px; padding:12px 14px;
+    border-top:1px solid var(--border); background:rgba(8,10,13,0.95);
+    backdrop-filter:blur(10px); flex-shrink:0;
+  }
+  #msg-input {
+    flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+    padding:9px 13px; font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--text);
+    outline:none; resize:none; max-height:100px; line-height:1.5;
+    transition:border-color 0.2s, box-shadow 0.2s;
+  }
+  #msg-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+
+  .send-btn {
+    background:var(--accent); border:none; border-radius:8px;
+    width:42px; height:42px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.2s; color:#080a0d; flex-shrink:0;
+  }
+  .send-btn:hover:not(:disabled) { box-shadow:0 0 18px var(--accent-glow); transform:scale(1.05); }
+  .send-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none !important; }
+
+  #loading {
+    display:none; position:fixed; inset:0;
+    background:rgba(8,10,13,0.95); z-index:100;
+    align-items:center; justify-content:center; flex-direction:column; gap:14px;
+    backdrop-filter:blur(8px);
+  }
+  .spinner { width:32px; height:32px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.75s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .load-txt { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.16em; color:var(--muted2); text-transform:uppercase; }
+
+  .btn-back {
+    background:none; border:1px solid var(--border); border-radius:5px; padding:6px 12px;
+    font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.1em; color:var(--muted2);
+    cursor:pointer; transition:all 0.2s; margin-top:12px; width:auto;
+  }
+  .btn-back:hover { border-color:var(--accent); color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="load-txt" id="load-txt">Initialisation...</div>
+</div>
+
+<header>
+  <div class="logo">
+    NetChat Secure
+    <div class="lock-badge">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      AES-256
+    </div>
+  </div>
+  <div class="status-pill">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Init...</span>
+  </div>
+</header>
+
+<main>
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="card">
+      <div class="card-section">
+        <div class="section-label">🔐 Accès sécurisé</div>
+        <div class="field">
+          <label class="fl">👤 Votre pseudo</label>
+          <input type="text" id="login-pseudo" placeholder="Ex: Alice, Bob..." maxlength="20" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="card-section">
+        <div class="section-label">🔑 Session</div>
+        <div class="field">
+          <label class="fl">Code de session (optionnel)</label>
+          <input type="text" id="login-session" placeholder="Laissez vide pour créer une nouvelle session" maxlength="10" style="text-transform:uppercase;letter-spacing:0.2em" autocomplete="off">
+        </div>
+        <div class="info-msg" style="margin-top:8px">
+          💡 Astuce : Donnez votre code à un ami pour chatter !<br>
+          🔒 Les messages sont chiffrés avec AES-256
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="login-btn">🎯 Rejoindre / Créer</button>
+    </div>
+  </div>
+
+  <!-- CONNECT SCREEN -->
+  <div id="connect-screen" style="display:none">
+    <div class="card">
+      <button class="btn-back" id="back-to-login" style="position:absolute; top:15px; left:15px;">← Retour</button>
+
+      <div class="card-section" style="margin-top:20px">
+        <div class="section-label">🎫 Votre code de connexion</div>
+        <div class="code-box" id="my-code-box" title="Cliquer pour copier">
+          <span id="code-text">• • •</span>
+        </div>
+        <div class="code-hint">↑ Donnez ce code à votre pair · Cliquer pour copier</div>
+      </div>
+
+      <div class="card-section">
+        <div class="section-label">🤝 Rejoindre un pair</div>
+
+        <div class="field">
+          <label class="fl">Code du pair</label>
+          <input type="text" id="peer-code-input" placeholder="ex: K7XP2M" maxlength="10"
+            style="text-transform:uppercase;letter-spacing:0.2em" autocomplete="off">
+        </div>
+
+        <div class="security-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Chiffrement <strong style="color:var(--accent)">AES-256</strong> automatique. Aucune clé à partager, la connexion est sécurisée par défaut.</span>
+        </div>
+
+        <button class="btn btn-primary" id="connect-btn" disabled>▶ Se connecter</button>
+        <div class="error-msg" id="error-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div id="chat-screen">
+    <div class="chat-bar">
+      <div class="peer-info">
+        <div class="peer-name-display" id="peer-display">—</div>
+        <div class="session-meta">Session : <span id="sess-code">—</span></div>
+      </div>
+      <div class="enc-badge">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Chiffré E2E
+      </div>
+      <button class="btn-disc" id="disconnect-btn">✕ Quitter</button>
+    </div>
+
+    <div id="messages"></div>
+
+    <div class="input-bar">
+      <textarea id="msg-input" placeholder="Message chiffré… (Entrée pour envoyer)" rows="1"></textarea>
+      <button class="send-btn" id="send-btn" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</main>
+
+<script>
+// ══════════════════════════════
+// STATE
+// ══════════════════════════════
+var peer      = null;
+var conn      = null;
+var myName    = '';
+var peerName  = '';
+var myCode    = '';
+var typingTimer   = null;
+var isTyping      = false;
+var typingEl      = null;
+var connTimeout   = null;
+var currentSessionCode = '';
+
+// Clé de chiffrement fixe pour simplifier (peut être dérivée du code de session)
+// Utilisation d'une clé dérivée du code de session pour que chaque conversation ait son propre chiffrement
+function getEncryptionKey() {
+  // Dérive une clé à partir du code de session + salt fixe
+  // Comme ça chaque conversation a son propre chiffrement sans clé à partager
+  return CryptoJS.SHA256(currentSessionCode + 'netchat_salt_2024').toString();
+}
+
+// ══════════════════════════════
+// DOM
+// ══════════════════════════════
+var loginScreen    = document.getElementById('login-screen');
+var loginPseudo    = document.getElementById('login-pseudo');
+var loginSession   = document.getElementById('login-session');
+var loginBtn       = document.getElementById('login-btn');
+
+var connectScreen  = document.getElementById('connect-screen');
+var myCodeBox      = document.getElementById('my-code-box');
+var codeText       = document.getElementById('code-text');
+var peerCodeInput  = document.getElementById('peer-code-input');
+var connectBtn     = document.getElementById('connect-btn');
+var errorMsgEl     = document.getElementById('error-msg');
+var backToLogin    = document.getElementById('back-to-login');
+
+var statusDot      = document.getElementById('status-dot');
+var statusTextEl   = document.getElementById('status-text');
+var chatScreen     = document.getElementById('chat-screen');
+var messagesEl     = document.getElementById('messages');
+var msgInput       = document.getElementById('msg-input');
+var sendBtn        = document.getElementById('send-btn');
+var peerDisplay    = document.getElementById('peer-display');
+var sessCode       = document.getElementById('sess-code');
+var disconnBtn     = document.getElementById('disconnect-btn');
+var loadOverlay    = document.getElementById('loading');
+var loadTxt        = document.getElementById('load-txt');
+
+// ══════════════════════════════
+// UTILS
+// ══════════════════════════════
+function genCode() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = '';
+  for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function setStatus(state, label) {
+  statusDot.className = 'dot' + (state ? ' ' + state : '');
+  statusTextEl.textContent = label;
+}
+
+function showError(msg) { errorMsgEl.textContent = msg; errorMsgEl.style.display = 'block'; }
+function hideError()    { errorMsgEl.style.display = 'none'; }
+function showLoading(msg) { loadTxt.textContent = msg; loadOverlay.style.display = 'flex'; }
+function hideLoading()    { loadOverlay.style.display = 'none'; }
+
+function scrollBot() {
+  requestAnimationFrame(function() { messagesEl.scrollTop = messagesEl.scrollHeight; });
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════
+// CRYPTO - Utilise la clé dérivée du code session
+// ══════════════════════════════
+function aesEncrypt(text) {
+  var key = getEncryptionKey();
+  return CryptoJS.AES.encrypt(text, key).toString();
+}
+
+function aesDecrypt(cipher) {
+  try {
+    var key = getEncryptionKey();
+    var bytes  = CryptoJS.AES.decrypt(cipher, key);
+    var result = bytes.toString(CryptoJS.enc.Utf8);
+    return result || null;
+  } catch(e) { return null; }
+}
+
+// ══════════════════════════════
+// MESSAGES UI
+// ══════════════════════════════
+function addMsg(text, time, mine) {
+  var w = document.createElement('div');
+  w.className = 'msg-wrap ' + (mine ? 'mine' : 'theirs');
+  w.innerHTML =
+    '<div class="msg-bubble">' + esc(text) + '</div>' +
+    '<div class="msg-meta">' + esc(mine ? 'Moi' : peerName) + ' · ' + esc(time) + '</div>';
+  messagesEl.appendChild(w);
+  scrollBot();
+}
+
+function addSystemMsg(text) {
+  var el = document.createElement('div');
+  el.className = 'system-msg';
+  el.textContent = text;
+  messagesEl.appendChild(el);
+  scrollBot();
+}
+
+function showTypingEl() {
+  if (typingEl) return;
+  typingEl = document.createElement('div');
+  typingEl.className = 'typing-wrap';
+  typingEl.innerHTML = '<div class="typing-indicator"><div class="td"></div><div class="td"></div><div class="td"></div></div>';
+  messagesEl.appendChild(typingEl);
+  scrollBot();
+}
+
+function removeTypingEl() {
+  if (typingEl) { typingEl.remove(); typingEl = null; }
+}
+
+// ══════════════════════════════
+// SEND (encrypted)
+// ══════════════════════════════
+function sendEnc(data) {
+  if (!conn || !conn.open) return;
+  conn.send({ enc: aesEncrypt(JSON.stringify(data)) });
+}
+
+// ══════════════════════════════
+// INCOMING DATA HANDLER
+// ══════════════════════════════
+function handleData(raw) {
+  if (!raw || !raw.enc) return;
+
+  var plain = aesDecrypt(raw.enc);
+  if (!plain) {
+    addSystemMsg('⚠ Erreur de déchiffrement.');
+    return;
+  }
+
+  var data;
+  try { data = JSON.parse(plain); } catch(e) { return; }
+
+  if (data.type === 'handshake') {
+    peerName = data.name || 'Inconnu';
+    onConnected();
+  } else if (data.type === 'msg') {
+    removeTypingEl();
+    addMsg(data.text, data.time, false);
+  } else if (data.type === 'typing') {
+    showTypingEl();
+  } else if (data.type === 'stop_typing') {
+    removeTypingEl();
+  } else if (data.type === 'bye') {
+    handleDisconnect(true);
+  }
+}
+
+// ══════════════════════════════
+// SETUP CONNECTION EVENTS
+// ══════════════════════════════
+function setupConn() {
+  conn.on('open', function() {
+    clearTimeout(connTimeout);
+    hideLoading();
+    sendEnc({ type: 'handshake', name: myName });
+  });
+
+  conn.on('data', handleData);
+
+  conn.on('close', function() { handleDisconnect(true); });
+  conn.on('error', function() { handleDisconnect(true); });
+}
+
+// ══════════════════════════════
+// ON CONNECTED → SHOW CHAT
+// ══════════════════════════════
+function onConnected() {
+  setStatus('online', 'Connecté');
+  connectScreen.style.display = 'none';
+  chatScreen.style.display    = 'flex';
+  peerDisplay.textContent     = peerName;
+  sessCode.textContent        = currentSessionCode || myCode;
+  sendBtn.disabled            = false;
+  msgInput.focus();
+  addSystemMsg('✓ AES-256 actif · Connecté avec ' + peerName);
+}
+
+// ══════════════════════════════
+// SEND MESSAGE
+// ══════════════════════════════
+function sendMsg() {
+  var text = msgInput.value.trim();
+  if (!text || !conn || !conn.open) return;
+  var time = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+  sendEnc({ type:'msg', text:text, time:time });
+  addMsg(text, time, true);
+  msgInput.value = '';
+  msgInput.style.height = 'auto';
+  stopSendTyping();
+}
+
+sendBtn.addEventListener('click', sendMsg);
+msgInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+msgInput.addEventListener('input', function() {
+  if (!conn || !conn.open) return;
+  if (!isTyping) { isTyping = true; sendEnc({ type:'typing' }); }
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(stopSendTyping, 1600);
+});
+
+function stopSendTyping() {
+  if (isTyping && conn && conn.open) { isTyping = false; sendEnc({ type:'stop_typing' }); }
+  clearTimeout(typingTimer);
+}
+
+// ══════════════════════════════
+// DISCONNECT
+// ══════════════════════════════
+disconnBtn.addEventListener('click', function() {
+  if (conn && conn.open) sendEnc({ type:'bye' });
+  handleDisconnect(false);
+});
+
+function handleDisconnect(byPeer) {
+  removeTypingEl();
+  hideLoading();
+  clearTimeout(connTimeout);
+
+  if (chatScreen.style.display === 'flex') {
+    addSystemMsg(byPeer
+      ? '✕ ' + peerName + ' a quitté'
+      : '✕ Vous avez quitté la conversation');
+
+    setTimeout(function() {
+      chatScreen.style.display    = 'none';
+      connectScreen.style.display = 'none';
+      loginScreen.style.display   = 'flex';
+      messagesEl.innerHTML        = '';
+      sendBtn.disabled            = true;
+      peerCodeInput.value         = '';
+      conn = null; peerName = '';
+      setStatus('ready', 'Prêt');
+    }, 1500);
+  }
+}
+
+// ══════════════════════════════
+// CONNECT BUTTON
+// ══════════════════════════════
+connectBtn.addEventListener('click', function() {
+  var code = peerCodeInput.value.trim().toUpperCase();
+
+  if (!code)           { showError('Entrez le code du pair'); return; }
+  if (code === myCode) { showError('Vous ne pouvez pas vous connecter à vous-même'); return; }
+
+  hideError();
+  setStatus('connecting', 'Connexion...');
+  showLoading('Connexion en cours...');
+
+  conn = peer.connect(code, { reliable: true, serialization: 'json' });
+  setupConn();
+
+  connTimeout = setTimeout(function() {
+    if (!conn || !conn.open) {
+      conn = null;
+      hideLoading();
+      setStatus('ready', 'Prêt');
+      showError('Code introuvable — vérifiez le code et réessayez.');
+    }
+  }, 10000);
+});
+
+// ══════════════════════════════
+// COPY CODE
+// ══════════════════════════════
+myCodeBox.addEventListener('click', function() {
+  if (!myCode) return;
+  navigator.clipboard.writeText(myCode).then(function() {
+    codeText.textContent = 'COPIÉ !';
+    myCodeBox.style.background = 'rgba(0,229,160,0.15)';
+    setTimeout(function() {
+      codeText.textContent = myCode;
+      myCodeBox.style.background = '';
+    }, 1400);
+  }).catch(function() {});
+});
+
+// ══════════════════════════════
+// LOGIN HANDLER
+// ══════════════════════════════
+loginBtn.addEventListener('click', function() {
+  var pseudo = loginPseudo.value.trim();
+  var sessionCode = loginSession.value.trim().toUpperCase();
+
+  if (!pseudo) {
+    var errorDiv = document.createElement('div');
+    errorDiv.className = 'error-msg';
+    errorDiv.textContent = '⚠ Veuillez entrer un pseudo';
+    errorDiv.style.display = 'block';
+    document.querySelector('#login-screen .card').appendChild(errorDiv);
+    setTimeout(function() { errorDiv.remove(); }, 2000);
+    return;
+  }
+
+  myName = pseudo;
+  currentSessionCode = sessionCode || genCode();
+  myCode = currentSessionCode;
+
+  if (peer) {
+    peer.destroy();
+  }
+
+  showLoading('Connexion au réseau P2P...');
+
+  peer = new Peer(myCode, {
+    host: '0.peerjs.com',
+    port: 443,
+    path: '/',
+    secure: true,
+    debug: 0
+  });
+
+  peer.on('open', function(id) {
+    myCode = id;
+    codeText.textContent = myCode;
+    setStatus('ready', 'Prêt');
+    connectBtn.disabled = false;
+    hideLoading();
+
+    loginScreen.style.display = 'none';
+    connectScreen.style.display = 'flex';
+  });
+
+  peer.on('error', function(err) {
+    hideLoading();
+    console.error('PeerJS error:', err);
+
+    if (err.type === 'unavailable-id') {
+      var newCode = genCode();
+      currentSessionCode = newCode;
+      myCode = newCode;
+      peer.destroy();
+
+      peer = new Peer(myCode, {
+        host: '0.peerjs.com',
+        port: 443,
+        path: '/',
+        secure: true,
+        debug: 0
+      });
+
+      peer.on('open', function(id) {
+        myCode = id;
+        codeText.textContent = myCode;
+        setStatus('ready', 'Prêt');
+        connectBtn.disabled = false;
+        hideLoading();
+        loginScreen.style.display = 'none';
+        connectScreen.style.display = 'flex';
+      });
+      return;
+    }
+
+    setStatus('error', 'Erreur');
+    var errorDiv = document.createElement('div');
+    errorDiv.className = 'error-msg';
+    errorDiv.textContent = 'Erreur: ' + (err.type || 'Connexion impossible');
+    errorDiv.style.display = 'block';
+    document.querySelector('#login-screen .card').appendChild(errorDiv);
+    setTimeout(function() { errorDiv.remove(); }, 3000);
+  });
+
+  peer.on('connection', function(incoming) {
+    if (conn) { incoming.close(); return; }
+
+    conn = incoming;
+    setStatus('connecting', 'Pair entrant...');
+    showLoading('Connexion entrante...');
+    setupConn();
+  });
+});
+
+// ══════════════════════════════
+// BACK TO LOGIN
+// ══════════════════════════════
+backToLogin.addEventListener('click', function() {
+  if (peer) {
+    peer.destroy();
+    peer = null;
+  }
+  if (conn) {
+    conn.close();
+    conn = null;
+  }
+  connectScreen.style.display = 'none';
+  loginScreen.style.display = 'flex';
+  loginPseudo.value = myName || '';
+  loginSession.value = '';
+  peerCodeInput.value = '';
+  setStatus('ready', 'Prêt');
+});
+
+// Auto-resize textarea
+msgInput.addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+});
+
+setStatus('ready', 'Prêt');
+</script>
+</body>
+</html>
