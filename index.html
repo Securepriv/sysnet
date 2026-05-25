@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NetChat Secure - Choix du mode de connexion</title>
+<title>NetChat Secure - Chat par Mot de Passe</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 <style>
@@ -92,12 +92,16 @@
 
   main { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; z-index:1; }
 
+  #login-screen, #wait-screen {
+    flex:1; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  }
+
   .card {
     background:var(--surface);
     border:1px solid var(--border);
     border-radius:14px;
     padding:32px 32px 28px;
-    width:100%; max-width:500px;
+    width:100%; max-width:420px;
     position:relative;
     animation: fadeInUp 0.4s ease;
   }
@@ -144,27 +148,13 @@
 
   .btn {
     width:100%; padding:11px; border:none; border-radius:7px;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:11px; letter-spacing:0.16em;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.16em;
     text-transform:uppercase; cursor:pointer; transition:all 0.2s; font-weight:600;
   }
   .btn-primary { background:var(--accent); color:#080a0d; }
   .btn-primary:hover:not(:disabled) { box-shadow:0 0 22px var(--accent-glow); transform:translateY(-1px); }
   .btn-primary:active { transform:translateY(0); }
-
-  .btn-secondary {
-    background:var(--surface2);
-    border:1px solid var(--border);
-    color:var(--text);
-  }
-  .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
-
-  .btn-group {
-    display:flex;
-    gap:10px;
-    margin-top:10px;
-  }
-  .btn-group .btn { flex:1; }
+  .btn:disabled { opacity:0.35; cursor:not-allowed; transform:none !important; }
 
   .error-msg {
     font-size:11px; color:var(--danger); font-family:'IBM Plex Mono',monospace;
@@ -177,30 +167,6 @@
     margin-top:10px; padding:8px 12px;
     background:var(--accent-dim); border:1px solid rgba(0,229,160,0.2); border-radius:6px;
     text-align:center;
-  }
-
-  .mode-selector {
-    display:flex;
-    gap:10px;
-    margin-bottom:20px;
-  }
-  .mode-btn {
-    flex:1;
-    padding:8px;
-    background:var(--surface2);
-    border:1px solid var(--border);
-    border-radius:7px;
-    color:var(--muted2);
-    font-family:'IBM Plex Mono',monospace;
-    font-size:10px;
-    cursor:pointer;
-    transition:all 0.2s;
-    text-align:center;
-  }
-  .mode-btn.active {
-    border-color:var(--accent);
-    color:var(--accent);
-    background:var(--accent-dim);
   }
 
   #chat-screen { display:none; flex:1; flex-direction:column; overflow:hidden; }
@@ -297,18 +263,24 @@
   @keyframes spin { to{transform:rotate(360deg)} }
   .load-txt { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.16em; color:var(--muted2); text-transform:uppercase; }
 
-  .code-display {
-    background:var(--bg);
-    border:1px solid var(--accent);
-    border-radius:7px;
-    padding:15px;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:20px;
-    font-weight:600;
-    color:var(--accent);
-    text-align:center;
+  .btn-back {
+    background:none; border:1px solid var(--border); border-radius:5px; padding:6px 12px;
+    font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.1em; color:var(--muted2);
+    cursor:pointer; transition:all 0.2s; margin-top:12px; width:auto;
+  }
+  .btn-back:hover { border-color:var(--accent); color:var(--accent); }
+
+  .room-code-display {
+    font-size:24px;
+    font-weight:700;
     letter-spacing:2px;
+    background:var(--bg);
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
     margin:10px 0;
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--accent);
     word-break:break-all;
   }
 </style>
@@ -335,75 +307,58 @@
 </header>
 
 <main>
-  <!-- ÉCRAN PRINCIPAL -->
-  <div id="login-screen" style="display:flex; align-items:center; justify-content:center; padding:20px;">
+  <div id="login-screen">
     <div class="card">
       <div class="card-section">
-        <div class="section-label">🔐 NetChat Secure</div>
+        <div class="section-label">🔐 Chat sécurisé par mot de passe</div>
         <div class="field">
           <label class="fl">👤 Votre pseudo</label>
-          <input type="text" id="pseudo-input" placeholder="Ex: Alice, Bob..." maxlength="20">
+          <input type="text" id="login-pseudo" placeholder="Ex: Alice, Bob..." maxlength="20" autocomplete="off">
         </div>
       </div>
 
       <div class="card-section">
-        <div class="section-label">📡 Mode de connexion</div>
-        <div class="mode-selector">
-          <div class="mode-btn" data-mode="code">🔢 Code seulement</div>
-          <div class="mode-btn" data-mode="password">🔑 Mot de passe seulement</div>
-          <div class="mode-btn" data-mode="both">🔐 Code + Mot de passe</div>
-        </div>
-      </div>
-
-      <div id="code-mode-fields" class="card-section" style="display:none;">
-        <div class="field">
-          <label class="fl">🎫 Code de session</label>
-          <input type="text" id="session-code" placeholder="Laissez vide pour en générer un" maxlength="10" style="text-transform:uppercase">
-        </div>
-      </div>
-
-      <div id="password-mode-fields" class="card-section" style="display:none;">
+        <div class="section-label">🔑 Mot de passe de la salle</div>
         <div class="secret-wrap">
-          <label class="fl">🔑 Mot de passe</label>
-          <input type="password" id="session-password" placeholder="Entrez un mot de passe">
-          <button class="toggle-eye" id="toggle-password-eye" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <input type="password" id="room-password" placeholder="Entrez un mot de passe pour créer/rejoindre une salle" autocomplete="off">
+          <button class="toggle-eye" id="toggle-eye" type="button">
+            <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
           </button>
         </div>
+        <div class="info-msg" style="margin-top:8px">
+          💡 Utilisez le même mot de passe que votre ami pour chatter !
+        </div>
       </div>
 
-      <div class="btn-group">
-        <button class="btn btn-primary" id="create-btn">📡 Créer une session</button>
-        <button class="btn btn-secondary" id="join-btn">🔗 Rejoindre</button>
-      </div>
+      <button class="btn btn-primary" id="create-room-btn">🎯 Créer une salle</button>
+      <button class="btn btn-primary" id="join-room-btn" style="margin-top:10px; background:var(--surface); color:var(--accent); border:1px solid var(--accent);">🔗 Rejoindre une salle</button>
       <div id="login-error" class="error-msg"></div>
-      <div id="login-info" class="info-msg" style="display:none;"></div>
     </div>
   </div>
 
-  <!-- ÉCRAN D'ATTENTE -->
-  <div id="wait-screen" style="display:none; align-items:center; justify-content:center; padding:20px;">
+  <div id="wait-screen" style="display:none">
     <div class="card">
       <div class="card-section">
         <div class="section-label" id="wait-title">⏳ En attente...</div>
-        <div id="wait-message" class="info-msg" style="margin-bottom:15px"></div>
-        <div id="wait-code-display" class="code-display" style="display:none;"></div>
-        <div id="wait-instruction" class="code-hint"></div>
+        <div id="wait-message" class="info-msg" style="margin-bottom:15px">
+          🔑 Code d'invitation :
+        </div>
+        <div class="room-code-display" id="invite-code"></div>
+        <div id="wait-instruction" class="code-hint" style="margin-top:10px"></div>
       </div>
-      <button class="btn-secondary" id="cancel-wait" style="width:100%; padding:10px; margin-top:10px;">✕ Annuler</button>
+      <button class="btn-back" id="cancel-wait" style="width:100%; margin-top:10px;">✕ Annuler</button>
       <div id="wait-error" class="error-msg"></div>
     </div>
   </div>
 
-  <!-- ÉCRAN DE CHAT -->
   <div id="chat-screen">
     <div class="chat-bar">
       <div class="peer-info">
         <div class="peer-name-display" id="peer-display">—</div>
-        <div class="session-meta" id="session-meta"></div>
+        <div class="session-meta">Salle : <span id="room-name">••••••</span></div>
       </div>
       <div class="enc-badge">
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -411,9 +366,11 @@
       </div>
       <button class="btn-disc" id="disconnect-btn">✕ Quitter</button>
     </div>
+
     <div id="messages"></div>
+
     <div class="input-bar">
-      <textarea id="msg-input" placeholder="Message… (Entrée pour envoyer)" rows="1"></textarea>
+      <textarea id="msg-input" placeholder="Message chiffré… (Entrée pour envoyer)" rows="1"></textarea>
       <button class="send-btn" id="send-btn" disabled>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -424,41 +381,35 @@
 </main>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-// ÉTAT GLOBAL
-// ═══════════════════════════════════════════════════════════════
+// ÉTAT
 var peer = null;
 var conn = null;
 var myName = '';
 var peerName = '';
-var currentMode = 'code'; // 'code', 'password', 'both'
-var sessionCode = '';      // Pour les modes 'code' et 'both'
-var sessionPassword = '';   // Pour les modes 'password' et 'both'
-var myPeerId = '';
-var targetPeerId = '';
+var roomPassword = '';
+var encryptionKey = '';
+var myId = '';
+var targetId = '';
 var typingTimer = null;
 var isTyping = false;
 var typingEl = null;
 var connTimeout = null;
 
-// ═══════════════════════════════════════════════════════════════
 // DOM
-// ═══════════════════════════════════════════════════════════════
 var loginScreen = document.getElementById('login-screen');
 var waitScreen = document.getElementById('wait-screen');
-var pseudoInput = document.getElementById('pseudo-input');
-var sessionCodeInput = document.getElementById('session-code');
-var sessionPasswordInput = document.getElementById('session-password');
-var createBtn = document.getElementById('create-btn');
-var joinBtn = document.getElementById('join-btn');
+var loginPseudo = document.getElementById('login-pseudo');
+var roomPasswordInput = document.getElementById('room-password');
+var createRoomBtn = document.getElementById('create-room-btn');
+var joinRoomBtn = document.getElementById('join-room-btn');
+var toggleEye = document.getElementById('toggle-eye');
+var eyeIcon = document.getElementById('eye-icon');
 var cancelWait = document.getElementById('cancel-wait');
-var loginError = document.getElementById('login-error');
-var loginInfo = document.getElementById('login-info');
+var inviteCodeSpan = document.getElementById('invite-code');
 var waitTitle = document.getElementById('wait-title');
 var waitMessage = document.getElementById('wait-message');
-var waitCodeDisplay = document.getElementById('wait-code-display');
 var waitInstruction = document.getElementById('wait-instruction');
-var waitError = document.getElementById('wait-error');
+
 var statusDot = document.getElementById('status-dot');
 var statusTextEl = document.getElementById('status-text');
 var chatScreen = document.getElementById('chat-screen');
@@ -466,19 +417,16 @@ var messagesEl = document.getElementById('messages');
 var msgInput = document.getElementById('msg-input');
 var sendBtn = document.getElementById('send-btn');
 var peerDisplay = document.getElementById('peer-display');
-var sessionMeta = document.getElementById('session-meta');
+var roomNameSpan = document.getElementById('room-name');
 var disconnBtn = document.getElementById('disconnect-btn');
 var loadOverlay = document.getElementById('loading');
 var loadTxt = document.getElementById('load-txt');
+var waitError = document.getElementById('wait-error');
+var loginError = document.getElementById('login-error');
 
-// ═══════════════════════════════════════════════════════════════
 // UTILS
-// ═══════════════════════════════════════════════════════════════
-function genRandomCode() {
-  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var code = '';
-  for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+function genRandomId() {
+  return Math.random().toString(36).substring(2, 10).toUpperCase();
 }
 
 function setStatus(state, label) {
@@ -508,20 +456,9 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CRYPTO - Génère la clé AES en fonction du mode
-// ═══════════════════════════════════════════════════════════════
+// CRYPTO
 function getEncryptionKey() {
-  if (currentMode === 'code') {
-    // Clé dérivée du code de session
-    return CryptoJS.SHA256(sessionCode + '_netchat_salt').toString();
-  } else if (currentMode === 'password') {
-    // Clé dérivée du mot de passe
-    return CryptoJS.SHA256(sessionPassword).toString();
-  } else {
-    // Mode both : combinaison code + mot de passe
-    return CryptoJS.SHA256(sessionCode + '_' + sessionPassword).toString();
-  }
+  return CryptoJS.SHA256(roomPassword).toString();
 }
 
 function aesEncrypt(text) {
@@ -536,9 +473,7 @@ function aesDecrypt(cipher) {
   } catch(e) { return null; }
 }
 
-// ═══════════════════════════════════════════════════════════════
 // MESSAGES UI
-// ═══════════════════════════════════════════════════════════════
 function addMsg(text, time, mine) {
   var w = document.createElement('div');
   w.className = 'msg-wrap ' + (mine ? 'mine' : 'theirs');
@@ -569,19 +504,18 @@ function removeTypingEl() {
   if (typingEl) { typingEl.remove(); typingEl = null; }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// COMMUNICATION
-// ═══════════════════════════════════════════════════════════════
+// SEND
 function sendEnc(data) {
   if (!conn || !conn.open) return;
   conn.send({ enc: aesEncrypt(JSON.stringify(data)) });
 }
 
+// HANDLE DATA
 function handleData(raw) {
   if (!raw || !raw.enc) return;
   var plain = aesDecrypt(raw.enc);
   if (!plain) {
-    addSystemMsg('⚠ Erreur de déchiffrement - clé incorrecte');
+    addSystemMsg('⚠ Erreur de déchiffrement - mot de passe incorrect ?');
     return;
   }
   var data;
@@ -601,6 +535,7 @@ function handleData(raw) {
   }
 }
 
+// SETUP CONNECTION
 function setupConn() {
   conn.on('open', function() {
     clearTimeout(connTimeout);
@@ -617,16 +552,13 @@ function onConnected() {
   waitScreen.style.display = 'none';
   chatScreen.style.display = 'flex';
   peerDisplay.textContent = peerName;
-  var modeText = currentMode === 'code' ? '🔢 Code' : (currentMode === 'password' ? '🔑 Mot de passe' : '🔐 Code+Mot de passe');
-  sessionMeta.textContent = modeText + ' · Chiffré AES-256';
+  roomNameSpan.textContent = '••••••';
   sendBtn.disabled = false;
   msgInput.focus();
-  addSystemMsg('✓ Connecté avec ' + peerName);
+  addSystemMsg('✓ AES-256 actif · Connecté avec ' + peerName);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ENVOI DE MESSAGES
-// ═══════════════════════════════════════════════════════════════
+// SEND MESSAGE
 function sendMsg() {
   var text = msgInput.value.trim();
   if (!text || !conn || !conn.open) return;
@@ -654,9 +586,7 @@ function stopSendTyping() {
   clearTimeout(typingTimer);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DÉCONNEXION
-// ═══════════════════════════════════════════════════════════════
+// DISCONNECT
 disconnBtn.addEventListener('click', function() {
   if (conn && conn.open) sendEnc({ type:'bye' });
   handleDisconnect(false);
@@ -667,7 +597,7 @@ function handleDisconnect(byPeer) {
   hideLoading();
   clearTimeout(connTimeout);
   if (chatScreen.style.display === 'flex') {
-    addSystemMsg(byPeer ? '✕ ' + peerName + ' a quitté' : '✕ Vous avez quitté');
+    addSystemMsg(byPeer ? '✕ ' + peerName + ' a quitté' : '✕ Vous avez quitté la conversation');
     setTimeout(function() {
       chatScreen.style.display = 'none';
       loginScreen.style.display = 'flex';
@@ -681,59 +611,29 @@ function handleDisconnect(byPeer) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CRÉER UNE SESSION
-// ═══════════════════════════════════════════════════════════════
-function createSession() {
-  var pseudo = pseudoInput.value.trim();
+// CRÉER UNE SALLE (on attend une connexion entrante)
+function createRoom() {
+  var pseudo = loginPseudo.value.trim();
+  var password = roomPasswordInput.value;
   if (!pseudo) { showError('⚠ Entrez un pseudo', loginError); return; }
-  
-  if (currentMode === 'code') {
-    sessionCode = sessionCodeInput.value.trim().toUpperCase();
-    if (!sessionCode) sessionCode = genRandomCode();
-  } else if (currentMode === 'password') {
-    sessionPassword = sessionPasswordInput.value;
-    if (!sessionPassword) { showError('⚠ Entrez un mot de passe', loginError); return; }
-  } else {
-    sessionCode = sessionCodeInput.value.trim().toUpperCase();
-    sessionPassword = sessionPasswordInput.value;
-    if (!sessionCode) sessionCode = genRandomCode();
-    if (!sessionPassword) { showError('⚠ Entrez un mot de passe', loginError); return; }
-  }
-  
-  myName = pseudo;
+  if (!password) { showError('⚠ Entrez un mot de passe', loginError); return; }
   hideError(loginError);
-  showLoading('Création de la session...');
-  
-  myPeerId = genRandomCode() + Math.random().toString(36).substring(2, 5);
-  
-  if (peer) peer.destroy();
-  peer = new Peer(myPeerId, { host: '0.peerjs.com', port: 443, path: '/', secure: true, debug: 0 });
-  
+  myName = pseudo;
+  roomPassword = password;
+  myId = genRandomId();
+  targetId = null;
+  showLoading('Création de la salle...');
+  if (peer) { peer.destroy(); }
+  peer = new Peer(myId, { host: '0.peerjs.com', port: 443, path: '/', secure: true, debug: 0 });
   peer.on('open', function(id) {
     hideLoading();
     loginScreen.style.display = 'none';
     waitScreen.style.display = 'flex';
     waitTitle.textContent = '⏳ En attente d\'un pair...';
-    
-    var infoText = '';
-    if (currentMode === 'code') {
-      infoText = '🔢 Code de session : <strong>' + sessionCode + '</strong>';
-      waitCodeDisplay.style.display = 'block';
-      waitCodeDisplay.innerHTML = sessionCode;
-    } else if (currentMode === 'password') {
-      infoText = '🔑 Mot de passe : <strong>' + '•'.repeat(sessionPassword.length) + '</strong>';
-      waitCodeDisplay.style.display = 'none';
-    } else {
-      infoText = '🔢 Code : <strong>' + sessionCode + '</strong><br>🔑 Mot de passe : <strong>' + '•'.repeat(sessionPassword.length) + '</strong>';
-      waitCodeDisplay.style.display = 'block';
-      waitCodeDisplay.innerHTML = sessionCode;
-    }
-    
-    waitMessage.innerHTML = '📋 À partager avec votre pair :<br>' + infoText;
-    waitInstruction.innerHTML = 'Votre ami doit utiliser le bouton "Rejoindre" avec les mêmes informations.';
+    waitMessage.innerHTML = '🔑 Partager ce code avec votre ami :';
+    inviteCodeSpan.textContent = myId;
+    waitInstruction.innerHTML = 'Votre ami doit cliquer sur "Rejoindre une salle" et entrer ce code.';
     setStatus('ready', 'En attente');
-    
     peer.on('connection', function(incoming) {
       if (conn) { incoming.close(); return; }
       conn = incoming;
@@ -742,7 +642,6 @@ function createSession() {
       setupConn();
     });
   });
-  
   peer.on('error', function(err) {
     hideLoading();
     console.error(err);
@@ -751,59 +650,44 @@ function createSession() {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
-// REJOINDRE UNE SESSION
-// ═══════════════════════════════════════════════════════════════
-function joinSession() {
-  var pseudo = pseudoInput.value.trim();
+// REJOINDRE UNE SALLE (on demande le code)
+function joinRoom() {
+  var pseudo = loginPseudo.value.trim();
+  var password = roomPasswordInput.value;
   if (!pseudo) { showError('⚠ Entrez un pseudo', loginError); return; }
-  
-  if (currentMode === 'code') {
-    sessionCode = sessionCodeInput.value.trim().toUpperCase();
-    if (!sessionCode) { showError('⚠ Entrez le code de session du pair', loginError); return; }
-  } else if (currentMode === 'password') {
-    sessionPassword = sessionPasswordInput.value;
-    if (!sessionPassword) { showError('⚠ Entrez le mot de passe du pair', loginError); return; }
-  } else {
-    sessionCode = sessionCodeInput.value.trim().toUpperCase();
-    sessionPassword = sessionPasswordInput.value;
-    if (!sessionCode) { showError('⚠ Entrez le code de session du pair', loginError); return; }
-    if (!sessionPassword) { showError('⚠ Entrez le mot de passe du pair', loginError); return; }
-  }
-  
+  if (!password) { showError('⚠ Entrez un mot de passe', loginError); return; }
+  var code = prompt('📱 Entrez le code d\'invitation donné par votre ami :');
+  if (!code) return;
   myName = pseudo;
-  hideError(loginError);
-  showLoading('Connexion à la session...');
-  
-  var randomId = genRandomCode() + Math.random().toString(36).substring(2, 5);
-  targetPeerId = sessionCode; // En mode code, le code est l'ID Peer
-  
-  if (peer) peer.destroy();
+  roomPassword = password;
+  targetId = code.toUpperCase();
+  showLoading('Connexion à la salle...');
+  if (peer) { peer.destroy(); }
+  var randomId = genRandomId();
   peer = new Peer(randomId, { host: '0.peerjs.com', port: 443, path: '/', secure: true, debug: 0 });
-  
   peer.on('open', function(id) {
-    conn = peer.connect(targetPeerId, { reliable: true, serialization: 'json' });
+    conn = peer.connect(targetId, { reliable: true, serialization: 'json' });
     setupConn();
-    
     connTimeout = setTimeout(function() {
       if (!conn || !conn.open) {
         conn = null;
         hideLoading();
         setStatus('ready', 'Prêt');
         showError('❌ Impossible de rejoindre : code invalide ou salle inexistante', loginError);
-        setTimeout(function() { loginScreen.style.display = 'flex'; waitScreen.style.display = 'none'; }, 2000);
+        setTimeout(function() {
+          loginScreen.style.display = 'flex';
+          waitScreen.style.display = 'none';
+        }, 2000);
       }
     }, 10000);
-    
     loginScreen.style.display = 'none';
     waitScreen.style.display = 'flex';
     waitTitle.textContent = '⏳ Connexion en cours...';
-    waitMessage.innerHTML = '🔗 Connexion à la session...';
-    waitCodeDisplay.style.display = 'none';
+    waitMessage.innerHTML = '🔗 Connexion à :';
+    inviteCodeSpan.textContent = targetId;
     waitInstruction.innerHTML = 'En attente de la réponse du pair...';
     setStatus('connecting', 'Connexion...');
   });
-  
   peer.on('error', function(err) {
     hideLoading();
     console.error(err);
@@ -812,46 +696,8 @@ function joinSession() {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MODE DE CONNEXION
-// ═══════════════════════════════════════════════════════════════
-var modeBtns = document.querySelectorAll('.mode-btn');
-modeBtns.forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    modeBtns.forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    currentMode = btn.getAttribute('data-mode');
-    
-    var codeFields = document.getElementById('code-mode-fields');
-    var passwordFields = document.getElementById('password-mode-fields');
-    
-    if (currentMode === 'code') {
-      codeFields.style.display = 'block';
-      passwordFields.style.display = 'none';
-      loginInfo.style.display = 'block';
-      loginInfo.innerHTML = '🔢 Mode Code : Entrez un code ou laissez vide pour en générer un.';
-    } else if (currentMode === 'password') {
-      codeFields.style.display = 'none';
-      passwordFields.style.display = 'block';
-      loginInfo.style.display = 'block';
-      loginInfo.innerHTML = '🔑 Mode Mot de passe : Utilisez le même mot de passe que votre pair.';
-    } else {
-      codeFields.style.display = 'block';
-      passwordFields.style.display = 'block';
-      loginInfo.style.display = 'block';
-      loginInfo.innerHTML = '🔐 Mode Sécurisé : Le pair doit avoir le même code ET le même mot de passe.';
-    }
-  });
-});
-
-// Activer le mode code par défaut
-document.querySelector('.mode-btn[data-mode="code"]').click();
-
-// ═══════════════════════════════════════════════════════════════
-// BOUTONS
-// ═══════════════════════════════════════════════════════════════
-createBtn.addEventListener('click', createSession);
-joinBtn.addEventListener('click', joinSession);
+createRoomBtn.addEventListener('click', createRoom);
+joinRoomBtn.addEventListener('click', joinRoom);
 cancelWait.addEventListener('click', function() {
   if (peer) { peer.destroy(); peer = null; }
   if (conn) { conn.close(); conn = null; }
@@ -860,20 +706,15 @@ cancelWait.addEventListener('click', function() {
   setStatus('ready', 'Prêt');
 });
 
-// ═══════════════════════════════════════════════════════════════
-// TOGGLE PASSWORD
-// ═══════════════════════════════════════════════════════════════
-var togglePasswordEye = document.getElementById('toggle-password-eye');
-var passwordEyeIcon = togglePasswordEye.querySelector('svg');
-togglePasswordEye.addEventListener('click', function() {
-  var isPass = sessionPasswordInput.type === 'password';
-  sessionPasswordInput.type = isPass ? 'text' : 'password';
-  passwordEyeIcon.innerHTML = isPass
+// EYE TOGGLE
+toggleEye.addEventListener('click', function() {
+  var isPass = roomPasswordInput.type === 'password';
+  roomPasswordInput.type = isPass ? 'text' : 'password';
+  eyeIcon.innerHTML = isPass
     ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
     : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
 });
 
-// Auto-resize
 msgInput.addEventListener('input', function() {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 100) + 'px';
