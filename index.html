@@ -3,89 +3,156 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NetChat Secure - Chat par Mot de Passe</title>
+<title>NetChat Secure - Chat Sécurisé</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
   :root {
-    --bg: #080a0d;
-    --surface: #0f1217;
-    --surface2: #141820;
-    --border: #1c2130;
-    --accent: #00e5a0;
-    --accent-dim: rgba(0,229,160,0.10);
-    --accent-glow: rgba(0,229,160,0.25);
-    --text: #dde4f0;
-    --muted: #3d4a60;
-    --muted2: #5a6a85;
-    --danger: #ff4d6d;
-    --warn: #f6ad55;
-    --my-bg: #0b2a1e;
-    --my-border: rgba(0,229,160,0.18);
-    --their-bg: #111825;
-    --their-border: #1c2130;
+    --bg-dark: #0a0e17;
+    --bg-light: #ffffff;
+    --surface-dark: #111827;
+    --surface-light: #f9fafb;
+    --surface2-dark: #1f2937;
+    --surface2-light: #f3f4f6;
+    --border-dark: #374151;
+    --border-light: #e5e7eb;
+    --accent: #06b6d4;
+    --accent-dim: rgba(6,182,212,0.1);
+    --accent-glow: rgba(6,182,212,0.25);
+    --text-dark: #f0f9ff;
+    --text-light: #1f2937;
+    --muted-dark: #9ca3af;
+    --muted-light: #6b7280;
+    --danger: #ef4444;
+    --success: #10b981;
+    --my-bg-dark: #0f4c3c;
+    --my-border-dark: rgba(16,185,129,0.2);
+    --their-bg-dark: #1e3a5f;
+    --their-border-dark: rgba(6,182,212,0.2);
+    --my-bg-light: #ecfdf5;
+    --my-border-light: rgba(16,185,129,0.3);
+    --their-bg-light: #eff6ff;
+    --their-border-light: rgba(6,182,212,0.3);
   }
 
   * { margin:0; padding:0; box-sizing:border-box; }
 
+  html {
+    --bg: var(--bg-dark);
+    --surface: var(--surface-dark);
+    --surface2: var(--surface2-dark);
+    --border: var(--border-dark);
+    --text: var(--text-dark);
+    --muted: var(--muted-dark);
+    --my-bg: var(--my-bg-dark);
+    --my-border: var(--my-border-dark);
+    --their-bg: var(--their-bg-dark);
+    --their-border: var(--their-border-dark);
+  }
+
+  html.light-mode {
+    --bg: var(--bg-light);
+    --surface: var(--surface-light);
+    --surface2: var(--surface2-light);
+    --border: var(--border-light);
+    --text: var(--text-light);
+    --muted: var(--muted-light);
+    --my-bg: var(--my-bg-light);
+    --my-border: var(--my-border-light);
+    --their-bg: var(--their-bg-light);
+    --their-border: var(--their-border-light);
+  }
+
   body {
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
     background: var(--bg);
     color: var(--text);
     height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: background 0.3s ease, color 0.3s ease;
   }
 
   body::before {
     content:'';
     position:fixed; inset:0;
     background:
-      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(0,229,160,0.04) 0%, transparent 60%),
-      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(0,180,255,0.03) 0%, transparent 60%);
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(6,182,212,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(59,130,246,0.03) 0%, transparent 60%);
     pointer-events:none; z-index:0;
   }
 
   header {
     position:relative; z-index:10;
     display:flex; align-items:center; justify-content:space-between;
-    padding:12px 20px;
+    padding:14px 20px;
     border-bottom:1px solid var(--border);
-    background:rgba(8,10,13,0.95);
+    background:rgba(10,14,23,0.95);
     backdrop-filter:blur(12px);
     flex-shrink:0;
+    transition: background 0.3s ease;
+  }
+
+  html.light-mode header {
+    background:rgba(255,255,255,0.95);
   }
 
   .logo {
-    font-family:'IBM Plex Mono',monospace;
-    font-size:13px; font-weight:600;
-    letter-spacing:0.18em; color:var(--accent);
-    display:flex; align-items:center; gap:10px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px; font-weight:700;
+    letter-spacing:0.05em;
+    color:var(--accent);
+    display:flex; align-items:center; gap:8px;
   }
 
-  .lock-badge {
-    display:flex; align-items:center; gap:5px;
+  .logo-icon {
+    width:24px; height:24px;
+    display:flex; align-items:center; justify-content:center;
     background:var(--accent-dim);
-    border:1px solid rgba(0,229,160,0.2);
-    border-radius:20px; padding:3px 10px;
-    font-size:10px; letter-spacing:0.12em; color:var(--accent);
+    border-radius:6px;
+    font-size:12px;
+  }
+
+  .header-controls {
+    display:flex; align-items:center; gap:12px;
+  }
+
+  .theme-toggle {
+    background:var(--surface2);
+    border:none;
+    border-radius:8px;
+    width:40px; height:40px;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--muted);
+    transition:all 0.2s;
+    font-size:18px;
+  }
+
+  .theme-toggle:hover {
+    background:var(--border);
+    color:var(--accent);
   }
 
   .status-pill {
-    display:flex; align-items:center; gap:7px;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:10px; letter-spacing:0.1em;
-    color:var(--muted2); text-transform:uppercase;
+    display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; letter-spacing:0.05em;
+    color:var(--muted);
+    text-transform:uppercase;
+    padding:6px 12px;
+    background:var(--surface2);
+    border-radius:20px;
   }
 
-  .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
-  .dot.online     { background:var(--accent); box-shadow:0 0 7px var(--accent-glow); animation:pulse 2s infinite; }
-  .dot.connecting { background:var(--warn); animation:blink 0.7s infinite; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
+  .dot.online     { background:var(--success); box-shadow:0 0 8px rgba(16,185,129,0.5); animation:pulse 2s infinite; }
+  .dot.connecting { background:#f59e0b; animation:blink 0.7s infinite; }
   .dot.error      { background:var(--danger); }
-  .dot.ready      { background:var(--accent); }
 
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
@@ -99,189 +166,298 @@
   .card {
     background:var(--surface);
     border:1px solid var(--border);
-    border-radius:14px;
-    padding:32px 32px 28px;
+    border-radius:16px;
+    padding:36px;
     width:100%; max-width:420px;
     position:relative;
     animation: fadeInUp 0.4s ease;
+    box-shadow:0 4px 20px rgba(0,0,0,0.1);
   }
+
   @keyframes fadeInUp {
-    from { opacity:0; transform:translateY(15px); }
+    from { opacity:0; transform:translateY(20px); }
     to { opacity:1; transform:translateY(0); }
   }
+
   .card::before {
-    content:''; position:absolute; top:0; left:0; right:0; height:2px; border-radius:14px 14px 0 0;
+    content:''; position:absolute; top:0; left:0; right:0; height:2px; border-radius:16px 16px 0 0;
     background:linear-gradient(90deg, transparent, var(--accent), transparent);
   }
 
-  .card-section { margin-bottom:24px; }
+  .card-section { margin-bottom:28px; }
   .card-section:last-child { margin-bottom:0; }
 
   .section-label {
-    font-family:'IBM Plex Mono',monospace;
-    font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:var(--muted2);
-    margin-bottom:12px; display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted);
+    margin-bottom:14px; display:flex; align-items:center; gap:8px; font-weight:600;
   }
   .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
 
-  .field { margin-bottom:10px; }
+  .field { margin-bottom:14px; }
 
   label.fl {
-    display:block; font-family:'IBM Plex Mono',monospace;
-    font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted2); margin-bottom:6px;
+    display:block; font-family:'JetBrains Mono',monospace;
+    font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; font-weight:500;
   }
 
   input[type="text"], input[type="password"] {
-    width:100%; background:var(--bg); border:1px solid var(--border); border-radius:7px;
-    padding:10px 13px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--text);
-    outline:none; transition:border-color 0.2s, box-shadow 0.2s;
+    width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; font-family:'Inter',sans-serif; font-size:14px; color:var(--text);
+    outline:none; transition:all 0.2s;
   }
   input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
 
   .secret-wrap { position:relative; }
-  .secret-wrap input { padding-right:42px; }
+  .secret-wrap input { padding-right:44px; }
   .toggle-eye {
-    position:absolute; right:11px; top:50%; transform:translateY(-50%);
-    background:none; border:none; cursor:pointer; color:var(--muted2); padding:2px; transition:color 0.2s;
+    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; color:var(--muted); padding:4px;
+    transition:all 0.2s; font-size:16px;
   }
   .toggle-eye:hover { color:var(--accent); }
 
   .btn {
-    width:100%; padding:11px; border:none; border-radius:7px;
-    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.16em;
+    width:100%; padding:12px; border:none; border-radius:10px;
+    font-family:'Inter',sans-serif; font-size:14px; letter-spacing:0.02em;
     text-transform:uppercase; cursor:pointer; transition:all 0.2s; font-weight:600;
   }
-  .btn-primary { background:var(--accent); color:#080a0d; }
-  .btn-primary:hover:not(:disabled) { box-shadow:0 0 22px var(--accent-glow); transform:translateY(-1px); }
+  .btn-primary { background:var(--accent); color:#000; }
+  .btn-primary:hover:not(:disabled) { box-shadow:0 0 20px var(--accent-glow); transform:translateY(-2px); }
   .btn-primary:active { transform:translateY(0); }
   .btn:disabled { opacity:0.35; cursor:not-allowed; transform:none !important; }
 
+  .btn-secondary {
+    background:var(--surface2);
+    color:var(--accent);
+    border:1px solid var(--accent);
+    margin-top:10px;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background:var(--accent);
+    color:#000;
+  }
+
   .error-msg {
-    font-size:11px; color:var(--danger); font-family:'IBM Plex Mono',monospace;
-    margin-top:10px; display:none; padding:8px 12px;
-    background:rgba(255,77,109,0.08); border:1px solid rgba(255,77,109,0.2); border-radius:6px;
+    font-size:13px; color:var(--danger); font-family:'Inter',sans-serif;
+    margin-top:10px; display:none; padding:12px 14px;
+    background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); border-radius:8px;
   }
 
   .info-msg {
-    font-size:11px; color:var(--accent); font-family:'IBM Plex Mono',monospace;
-    margin-top:10px; padding:8px 12px;
-    background:var(--accent-dim); border:1px solid rgba(0,229,160,0.2); border-radius:6px;
-    text-align:center;
+    font-size:12px; color:var(--accent); font-family:'Inter',sans-serif;
+    margin-top:10px; padding:12px 14px;
+    background:var(--accent-dim); border:1px solid var(--accent);
+    border-radius:8px; text-align:center; border-radius:8px;
   }
 
   #chat-screen { display:none; flex:1; flex-direction:column; overflow:hidden; }
 
   .chat-bar {
     display:flex; align-items:center; justify-content:space-between;
-    padding:9px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; gap:10px;
+    padding:12px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; gap:10px;
   }
   .peer-info { display:flex; flex-direction:column; min-width:0; }
-  .peer-name-display { font-weight:600; font-size:13px; color:var(--accent); }
-  .session-meta { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted2); letter-spacing:0.08em; margin-top:2px; }
+  .peer-name-display { font-weight:600; font-size:14px; color:var(--accent); }
+  .session-meta { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:0.05em; margin-top:2px; }
 
   .enc-badge {
-    display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono',monospace;
-    font-size:9px; letter-spacing:0.1em; color:var(--accent);
-    background:var(--accent-dim); border:1px solid rgba(0,229,160,0.15);
-    border-radius:20px; padding:3px 10px; white-space:nowrap; flex-shrink:0;
+    display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace;
+    font-size:10px; letter-spacing:0.05em; color:var(--accent);
+    background:var(--accent-dim); border:1px solid var(--accent);
+    border-radius:20px; padding:4px 12px; white-space:nowrap; flex-shrink:0;
   }
 
   .btn-disc {
-    background:none; border:1px solid var(--border); border-radius:5px; padding:4px 10px;
-    font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.1em; color:var(--muted2);
+    background:none; border:1px solid var(--border); border-radius:8px; padding:6px 12px;
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.05em; color:var(--muted);
     cursor:pointer; text-transform:uppercase; transition:all 0.2s; flex-shrink:0;
   }
   .btn-disc:hover { border-color:var(--danger); color:var(--danger); }
 
   #messages {
     flex:1; overflow-y:auto; padding:16px;
-    display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth;
+    display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth;
   }
-  #messages::-webkit-scrollbar { width:3px; }
-  #messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  #messages::-webkit-scrollbar { width:6px; }
+  #messages::-webkit-scrollbar-track { background:transparent; }
+  #messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
 
-  .msg-wrap { display:flex; flex-direction:column; max-width:74%; animation:slideIn 0.18s ease; }
-  @keyframes slideIn { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:none} }
+  .msg-wrap { display:flex; flex-direction:column; max-width:70%; animation:slideIn 0.2s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
   .msg-wrap.mine   { align-self:flex-end; align-items:flex-end; }
   .msg-wrap.theirs { align-self:flex-start; align-items:flex-start; }
 
+  .msg-container {
+    display:flex; gap:4px; align-items:flex-end;
+  }
+
+  .msg-wrap.mine .msg-container { flex-direction: row-reverse; }
+
   .msg-bubble {
-    padding:9px 13px; border-radius:10px;
-    font-size:13px; line-height:1.55; word-break:break-word; white-space:pre-wrap;
+    padding:10px 14px; border-radius:12px;
+    font-size:14px; line-height:1.5; word-break:break-word; white-space:pre-wrap;
+    position:relative;
   }
   .msg-wrap.mine   .msg-bubble { background:var(--my-bg); border:1px solid var(--my-border); border-bottom-right-radius:2px; }
   .msg-wrap.theirs .msg-bubble { background:var(--their-bg); border:1px solid var(--their-border); border-bottom-left-radius:2px; }
 
-  .msg-meta { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted); margin-top:4px; letter-spacing:0.05em; }
+  .msg-status {
+    font-size:10px; color:var(--muted); min-width:16px; text-align:center;
+  }
+
+  .msg-meta { 
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); 
+    margin-top:4px; letter-spacing:0.05em;
+    display:flex; gap:6px; align-items:center;
+  }
 
   .system-msg {
-    text-align:center; font-family:'IBM Plex Mono',monospace; font-size:10px;
-    color:var(--muted); letter-spacing:0.1em; padding:3px 0;
+    text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px;
+    color:var(--muted); letter-spacing:0.05em; padding:8px 0;
     display:flex; align-items:center; gap:8px;
   }
   .system-msg::before,.system-msg::after { content:''; flex:1; height:1px; background:var(--border); }
 
-  .typing-wrap { align-self:flex-start; animation:slideIn 0.18s ease; }
+  .typing-wrap { align-self:flex-start; animation:slideIn 0.2s ease; }
   .typing-indicator {
-    display:flex; align-items:center; gap:4px; padding:9px 13px;
+    display:flex; align-items:center; gap:4px; padding:10px 14px;
     background:var(--their-bg); border:1px solid var(--their-border);
-    border-radius:10px; border-bottom-left-radius:2px;
+    border-radius:12px; border-bottom-left-radius:2px;
   }
-  .td { width:5px; height:5px; border-radius:50%; background:var(--muted2); animation:tb 1.4s infinite; }
+  .td { width:4px; height:4px; border-radius:50%; background:var(--muted); animation:tb 1.4s infinite; }
   .td:nth-child(2){animation-delay:0.2s} .td:nth-child(3){animation-delay:0.4s}
-  @keyframes tb { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+  @keyframes tb { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
 
   .input-bar {
-    display:flex; gap:9px; padding:12px 14px;
-    border-top:1px solid var(--border); background:rgba(8,10,13,0.95);
-    backdrop-filter:blur(10px); flex-shrink:0;
+    display:flex; gap:8px; padding:12px 14px;
+    border-top:1px solid var(--border); background:var(--surface);
+    flex-shrink:0; align-items:flex-end;
   }
+
+  .input-wrapper {
+    flex:1; display:flex; gap:6px; align-items:flex-end;
+  }
+
   #msg-input {
-    flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px;
-    padding:9px 13px; font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--text);
+    flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+    padding:10px 12px; font-family:'Inter',sans-serif; font-size:14px; color:var(--text);
     outline:none; resize:none; max-height:100px; line-height:1.5;
-    transition:border-color 0.2s, box-shadow 0.2s;
+    transition:all 0.2s;
   }
   #msg-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
 
-  .send-btn {
-    background:var(--accent); border:none; border-radius:8px;
-    width:42px; height:42px; cursor:pointer;
+  .emoji-btn, .send-btn {
+    background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+    width:40px; height:40px; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
-    transition:all 0.2s; color:#080a0d; flex-shrink:0;
+    transition:all 0.2s; color:var(--muted); font-size:16px; flex-shrink:0;
   }
-  .send-btn:hover:not(:disabled) { box-shadow:0 0 18px var(--accent-glow); transform:scale(1.05); }
-  .send-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none !important; }
+
+  .emoji-btn:hover, .send-btn:hover {
+    background:var(--accent);
+    color:#000;
+    border-color:var(--accent);
+  }
+
+  .send-btn {
+    background:var(--accent);
+    border:none;
+    color:#000;
+  }
+
+  .send-btn:disabled { 
+    opacity:0.35; 
+    cursor:not-allowed; 
+    background:var(--border);
+    color:var(--muted);
+  }
+
+  .emoji-picker {
+    position:absolute;
+    bottom:60px;
+    right:14px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px;
+    display:none;
+    z-index:1000;
+    box-shadow:0 10px 30px rgba(0,0,0,0.2);
+    max-width:280px;
+  }
+
+  .emoji-picker.show { display:grid; }
+
+  .emoji-picker {
+    grid-template-columns:repeat(6, 1fr);
+    gap:8px;
+  }
+
+  .emoji-item {
+    width:40px;
+    height:40px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    background:var(--surface2);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    transition:all 0.2s;
+  }
+
+  .emoji-item:hover {
+    background:var(--accent);
+    border-color:var(--accent);
+    transform:scale(1.1);
+  }
 
   #loading {
     display:none; position:fixed; inset:0;
-    background:rgba(8,10,13,0.95); z-index:100;
+    background:rgba(10,14,23,0.95); z-index:100;
     align-items:center; justify-content:center; flex-direction:column; gap:14px;
     backdrop-filter:blur(8px);
   }
-  .spinner { width:32px; height:32px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.75s linear infinite; }
+
+  .spinner { 
+    width:40px; height:40px; 
+    border:3px solid var(--border); 
+    border-top-color:var(--accent); 
+    border-radius:50%; 
+    animation:spin 0.8s linear infinite; 
+  }
   @keyframes spin { to{transform:rotate(360deg)} }
-  .load-txt { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.16em; color:var(--muted2); text-transform:uppercase; }
+  .load-txt { 
+    font-family:'JetBrains Mono',monospace; 
+    font-size:12px; 
+    letter-spacing:0.1em; 
+    color:var(--muted); 
+    text-transform:uppercase; 
+  }
 
   .btn-back {
-    background:none; border:1px solid var(--border); border-radius:5px; padding:6px 12px;
-    font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.1em; color:var(--muted2);
+    background:none; border:1px solid var(--border); border-radius:8px; padding:8px 14px;
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.05em; color:var(--muted);
     cursor:pointer; transition:all 0.2s; margin-top:12px; width:auto;
   }
   .btn-back:hover { border-color:var(--accent); color:var(--accent); }
 
   .room-code-display {
-    font-size:24px;
+    font-size:28px;
     font-weight:700;
     letter-spacing:2px;
-    background:var(--bg);
-    padding:15px;
-    border-radius:10px;
+    background:var(--surface2);
+    padding:18px;
+    border-radius:12px;
     text-align:center;
-    margin:10px 0;
-    font-family:'IBM Plex Mono',monospace;
+    margin:12px 0;
+    font-family:'JetBrains Mono',monospace;
     color:var(--accent);
     word-break:break-all;
+    border:1px solid var(--border);
   }
 </style>
 </head>
@@ -294,15 +470,17 @@
 
 <header>
   <div class="logo">
+    <div class="logo-icon">🔐</div>
     NetChat Secure
-    <div class="lock-badge">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      AES-256
-    </div>
   </div>
-  <div class="status-pill">
-    <div class="dot" id="status-dot"></div>
-    <span id="status-text">Init...</span>
+  <div class="header-controls">
+    <button class="theme-toggle" id="theme-toggle" title="Basculer le mode sombre/clair">
+      <i class="fas fa-moon"></i>
+    </button>
+    <div class="status-pill">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Prêt</span>
+    </div>
   </div>
 </header>
 
@@ -310,31 +488,28 @@
   <div id="login-screen">
     <div class="card">
       <div class="card-section">
-        <div class="section-label">🔐 Chat sécurisé par mot de passe</div>
+        <div class="section-label">🔐 Connexion sécurisée</div>
         <div class="field">
           <label class="fl">👤 Votre pseudo</label>
-          <input type="text" id="login-pseudo" placeholder="Ex: Alice, Bob..." maxlength="20" autocomplete="off">
+          <input type="text" id="login-pseudo" placeholder="Alice, Bob..." maxlength="20" autocomplete="off">
         </div>
       </div>
 
       <div class="card-section">
         <div class="section-label">🔑 Mot de passe de la salle</div>
         <div class="secret-wrap">
-          <input type="password" id="room-password" placeholder="Entrez un mot de passe pour créer/rejoindre une salle" autocomplete="off">
+          <input type="password" id="room-password" placeholder="Entrez un mot de passe" autocomplete="off">
           <button class="toggle-eye" id="toggle-eye" type="button">
-            <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
+            <i class="fas fa-eye"></i>
           </button>
         </div>
-        <div class="info-msg" style="margin-top:8px">
-          💡 Utilisez le même mot de passe que votre ami pour chatter !
+        <div class="info-msg">
+          💡 Utilisez le même mot de passe que votre ami pour chatter
         </div>
       </div>
 
-      <button class="btn btn-primary" id="create-room-btn">🎯 Créer une salle</button>
-      <button class="btn btn-primary" id="join-room-btn" style="margin-top:10px; background:var(--surface); color:var(--accent); border:1px solid var(--accent);">🔗 Rejoindre une salle</button>
+      <button class="btn btn-primary" id="create-room-btn"><i class="fas fa-plus"></i> Créer une salle</button>
+      <button class="btn btn-secondary" id="join-room-btn"><i class="fas fa-link"></i> Rejoindre une salle</button>
       <div id="login-error" class="error-msg"></div>
     </div>
   </div>
@@ -344,12 +519,12 @@
       <div class="card-section">
         <div class="section-label" id="wait-title">⏳ En attente...</div>
         <div id="wait-message" class="info-msg" style="margin-bottom:15px">
-          🔓 Partage le mot de passe avec ton ami :
+          🔓 Partage le mot de passe :
         </div>
         <div class="room-code-display" id="invite-code"></div>
-        <div id="wait-instruction" class="code-hint" style="margin-top:10px"></div>
+        <div id="wait-instruction" class="code-hint" style="margin-top:10px; text-align:center; font-size:13px; color:var(--muted);"></div>
       </div>
-      <button class="btn-back" id="cancel-wait" style="width:100%; margin-top:10px;">✕ Annuler</button>
+      <button class="btn-back" id="cancel-wait" style="width:100%; margin-top:10px;"><i class="fas fa-times"></i> Annuler</button>
       <div id="wait-error" class="error-msg"></div>
     </div>
   </div>
@@ -361,39 +536,46 @@
         <div class="session-meta">Salle : <span id="room-name">••••••</span></div>
       </div>
       <div class="enc-badge">
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Chiffré E2E
+        <i class="fas fa-lock"></i>
+        E2E AES-256
       </div>
-      <button class="btn-disc" id="disconnect-btn">✕ Quitter</button>
+      <button class="btn-disc" id="disconnect-btn"><i class="fas fa-sign-out-alt"></i> Quitter</button>
     </div>
 
     <div id="messages"></div>
 
     <div class="input-bar">
-      <textarea id="msg-input" placeholder="Message chiffré… (Entrée pour envoyer)" rows="1"></textarea>
-      <button class="send-btn" id="send-btn" disabled>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
+      <div class="input-wrapper">
+        <textarea id="msg-input" placeholder="Message..." rows="1"></textarea>
+        <button class="emoji-btn" id="emoji-btn" title="Ajouter un emoji">
+          <i class="fas fa-smile"></i>
+        </button>
+      </div>
+      <button class="send-btn" id="send-btn" disabled title="Envoyer (Entrée)">
+        <i class="fas fa-paper-plane"></i>
       </button>
+      <div class="emoji-picker" id="emoji-picker"></div>
     </div>
   </div>
 </main>
 
 <script>
-// ÉTAT
+// EMOJIS
+const EMOJIS = ['😀','😂','😍','🥰','😘','😎','🤔','😅','🎉','🔥','💯','⭐','❤️','👍','✌️','🙌','🤝','👏','💪','🎯','🚀','🌟','✨','💫','🎈','🎁','🎊','🌈','☀️','🌙','⚡','🍕','🍔','🍟','🍗','🍰','🍪','☕','🍷','🍺','🍻','🎂','🍎','🍊','🍋','🍌','🍉'];
+
+// STATE
 var peer = null;
 var conn = null;
 var myName = '';
 var peerName = '';
 var roomPassword = '';
-var encryptionKey = '';
 var myId = '';
 var targetId = '';
 var typingTimer = null;
 var isTyping = false;
 var typingEl = null;
 var connTimeout = null;
+var messageStates = {}; // Track message status: pending, sent, delivered, read
 
 // DOM
 var loginScreen = document.getElementById('login-screen');
@@ -403,7 +585,6 @@ var roomPasswordInput = document.getElementById('room-password');
 var createRoomBtn = document.getElementById('create-room-btn');
 var joinRoomBtn = document.getElementById('join-room-btn');
 var toggleEye = document.getElementById('toggle-eye');
-var eyeIcon = document.getElementById('eye-icon');
 var cancelWait = document.getElementById('cancel-wait');
 var inviteCodeSpan = document.getElementById('invite-code');
 var waitTitle = document.getElementById('wait-title');
@@ -423,6 +604,9 @@ var loadOverlay = document.getElementById('loading');
 var loadTxt = document.getElementById('load-txt');
 var waitError = document.getElementById('wait-error');
 var loginError = document.getElementById('login-error');
+var themeToggle = document.getElementById('theme-toggle');
+var emojiBtn = document.getElementById('emoji-btn');
+var emojiPicker = document.getElementById('emoji-picker');
 
 // UTILS
 function genRandomId() {
@@ -456,6 +640,59 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// THEME TOGGLE
+function toggleTheme() {
+  const html = document.documentElement;
+  html.classList.toggle('light-mode');
+  localStorage.setItem('theme', html.classList.contains('light-mode') ? 'light' : 'dark');
+  updateThemeIcon();
+}
+
+function updateThemeIcon() {
+  const icon = themeToggle.querySelector('i');
+  const isDark = !document.documentElement.classList.contains('light-mode');
+  icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+}
+
+// Initialize theme from localStorage
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.documentElement.classList.add('light-mode');
+  }
+  updateThemeIcon();
+}
+
+themeToggle.addEventListener('click', toggleTheme);
+
+// EMOJI PICKER
+function initEmojiPicker() {
+  EMOJIS.forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.className = 'emoji-item';
+    btn.textContent = emoji;
+    btn.onclick = (e) => {
+      e.preventDefault();
+      msgInput.value += emoji;
+      msgInput.focus();
+      emojiPicker.classList.remove('show');
+    };
+    emojiPicker.appendChild(btn);
+  });
+}
+
+emojiBtn.addEventListener('click', () => {
+  emojiPicker.classList.toggle('show');
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.emoji-btn') && !e.target.closest('.emoji-picker')) {
+    emojiPicker.classList.remove('show');
+  }
+});
+
+initEmojiPicker();
+
 // CRYPTO
 function getEncryptionKey() {
   return CryptoJS.SHA256(roomPassword).toString();
@@ -474,13 +711,48 @@ function aesDecrypt(cipher) {
 }
 
 // MESSAGES UI
-function addMsg(text, time, mine) {
+function addMsg(text, time, mine, id, status = 'sent') {
   var w = document.createElement('div');
   w.className = 'msg-wrap ' + (mine ? 'mine' : 'theirs');
-  w.innerHTML = '<div class="msg-bubble">' + esc(text) + '</div>' +
-    '<div class="msg-meta">' + esc(mine ? 'Moi' : peerName) + ' · ' + esc(time) + '</div>';
+  w.id = 'msg-' + id;
+  
+  const statusIcon = mine ? getStatusIcon(status) : '';
+  
+  w.innerHTML = `
+    <div class="msg-container">
+      <div class="msg-bubble">${esc(text)}</div>
+      ${mine ? `<div class="msg-status">${statusIcon}</div>` : ''}
+    </div>
+    <div class="msg-meta">
+      ${mine ? `${esc('Moi')}` : esc(peerName)}
+      <span>·</span>
+      ${esc(time)}
+    </div>
+  `;
   messagesEl.appendChild(w);
   scrollBot();
+  messageStates[id] = status;
+}
+
+function getStatusIcon(status) {
+  switch(status) {
+    case 'pending': return '⏱️';
+    case 'sent': return '✓';
+    case 'delivered': return '✓✓';
+    case 'read': return '✓✓';
+    default: return '';
+  }
+}
+
+function updateMsgStatus(id, status) {
+  messageStates[id] = status;
+  const msgEl = document.getElementById('msg-' + id);
+  if (msgEl) {
+    const statusEl = msgEl.querySelector('.msg-status');
+    if (statusEl) {
+      statusEl.textContent = getStatusIcon(status);
+    }
+  }
 }
 
 function addSystemMsg(text) {
@@ -520,12 +792,18 @@ function handleData(raw) {
   }
   var data;
   try { data = JSON.parse(plain); } catch(e) { return; }
+  
   if (data.type === 'handshake') {
     peerName = data.name || 'Inconnu';
     onConnected();
   } else if (data.type === 'msg') {
     removeTypingEl();
-    addMsg(data.text, data.time, false);
+    addMsg(data.text, data.time, false, data.id || Date.now());
+    sendEnc({ type: 'msg_delivered', id: data.id });
+  } else if (data.type === 'msg_delivered') {
+    updateMsgStatus(data.id, 'delivered');
+  } else if (data.type === 'msg_read') {
+    updateMsgStatus(data.id, 'read');
   } else if (data.type === 'typing') {
     showTypingEl();
   } else if (data.type === 'stop_typing') {
@@ -555,20 +833,36 @@ function onConnected() {
   roomNameSpan.textContent = '••••••';
   sendBtn.disabled = false;
   msgInput.focus();
-  addSystemMsg('✓ AES-256 actif · Connecté avec ' + peerName);
+  addSystemMsg('✓ Connecté avec ' + peerName);
 }
 
 // SEND MESSAGE
 function sendMsg() {
   var text = msgInput.value.trim();
   if (!text || !conn || !conn.open) return;
+  
   var time = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-  sendEnc({ type:'msg', text:text, time:time });
-  addMsg(text, time, true);
+  var msgId = Date.now();
+  
+  sendEnc({ type:'msg', text:text, time:time, id: msgId });
+  addMsg(text, time, true, msgId, 'pending');
   msgInput.value = '';
   msgInput.style.height = 'auto';
   stopSendTyping();
+  
+  setTimeout(() => updateMsgStatus(msgId, 'sent'), 100);
 }
+
+// Track focus for read receipts
+messagesEl.addEventListener('scroll', () => {
+  const lastMsg = messagesEl.lastElementChild;
+  if (lastMsg && lastMsg.classList.contains('msg-wrap') && lastMsg.classList.contains('theirs')) {
+    const rect = lastMsg.getBoundingClientRect();
+    if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
+      sendEnc({ type: 'msg_read' });
+    }
+  }
+});
 
 sendBtn.addEventListener('click', sendMsg);
 msgInput.addEventListener('keydown', function(e) {
@@ -597,7 +891,7 @@ function handleDisconnect(byPeer) {
   hideLoading();
   clearTimeout(connTimeout);
   if (chatScreen.style.display === 'flex') {
-    addSystemMsg(byPeer ? '✕ ' + peerName + ' a quitté' : '✕ Vous avez quitté la conversation');
+    addSystemMsg(byPeer ? '✕ ' + peerName + ' a quitté' : '✕ Vous avez quitté');
     setTimeout(function() {
       chatScreen.style.display = 'none';
       loginScreen.style.display = 'flex';
@@ -607,11 +901,12 @@ function handleDisconnect(byPeer) {
       if (conn) { conn.close(); conn = null; }
       if (peer) { peer.destroy(); peer = null; }
       setStatus('ready', 'Prêt');
+      messageStates = {};
     }, 1500);
   }
 }
 
-// CRÉER UNE SALLE (utiliser le mot de passe hashé comme ID)
+// CREATE ROOM
 function createRoom() {
   var pseudo = loginPseudo.value.trim();
   var password = roomPasswordInput.value;
@@ -621,7 +916,6 @@ function createRoom() {
   myName = pseudo;
   roomPassword = password;
   
-  // Utiliser le mot de passe hashé comme ID unique
   myId = CryptoJS.SHA256(password).toString().substring(0, 12).toUpperCase();
   targetId = null;
   
@@ -632,8 +926,8 @@ function createRoom() {
     hideLoading();
     loginScreen.style.display = 'none';
     waitScreen.style.display = 'flex';
-    waitTitle.textContent = '⏳ En attente d\'un pair...';
-    waitMessage.innerHTML = '🔓 Partage le mot de passe avec ton ami :';
+    waitTitle.textContent = '⏳ En attente...';
+    waitMessage.innerHTML = '🔓 Partage le mot de passe :';
     inviteCodeSpan.textContent = password;
     waitInstruction.innerHTML = 'Votre ami doit cliquer sur "Rejoindre une salle" et entrer le même mot de passe.';
     setStatus('ready', 'En attente');
@@ -653,7 +947,7 @@ function createRoom() {
   });
 }
 
-// REJOINDRE UNE SALLE (utiliser le même calcul du mot de passe)
+// JOIN ROOM
 function joinRoom() {
   var pseudo = loginPseudo.value.trim();
   var password = roomPasswordInput.value;
@@ -663,7 +957,6 @@ function joinRoom() {
   myName = pseudo;
   roomPassword = password;
   
-  // Utiliser le même calcul que createRoom()
   targetId = CryptoJS.SHA256(password).toString().substring(0, 12).toUpperCase();
   
   showLoading('Connexion à la salle...');
@@ -688,8 +981,8 @@ function joinRoom() {
     loginScreen.style.display = 'none';
     waitScreen.style.display = 'flex';
     waitTitle.textContent = '⏳ Connexion en cours...';
-    waitMessage.innerHTML = '🔗 Connexion avec mot de passe...';
-    inviteCodeSpan.textContent = '••••••';
+    waitMessage.innerHTML = '🔗 Connexion...';
+    inviteCodeSpan.textContent = '•••';
     waitInstruction.innerHTML = 'En attente du créateur...';
     setStatus('connecting', 'Connexion...');
   });
@@ -715,9 +1008,9 @@ cancelWait.addEventListener('click', function() {
 toggleEye.addEventListener('click', function() {
   var isPass = roomPasswordInput.type === 'password';
   roomPasswordInput.type = isPass ? 'text' : 'password';
-  eyeIcon.innerHTML = isPass
-    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round" stroke-linejoin="round"/>'
-    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  toggleEye.innerHTML = isPass
+    ? '<i class="fas fa-eye-slash"></i>'
+    : '<i class="fas fa-eye"></i>';
 });
 
 msgInput.addEventListener('input', function() {
@@ -725,6 +1018,8 @@ msgInput.addEventListener('input', function() {
   this.style.height = Math.min(this.scrollHeight, 100) + 'px';
 });
 
+// Initialize
+initTheme();
 setStatus('ready', 'Prêt');
 </script>
 </body>
