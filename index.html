@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NetChat Secure - P2P Encrypted Chat</title>
+<title>NetChat Secure - Chat par Mot de Passe</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 <style>
@@ -93,7 +93,7 @@
   main { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; z-index:1; }
 
   /* LOGIN SCREEN */
-  #login-screen, #connect-screen {
+  #login-screen, #wait-screen {
     flex:1; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
   }
 
@@ -138,6 +138,14 @@
     outline:none; transition:border-color 0.2s, box-shadow 0.2s;
   }
   input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+
+  .secret-wrap { position:relative; }
+  .secret-wrap input { padding-right:42px; }
+  .toggle-eye {
+    position:absolute; right:11px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; color:var(--muted2); padding:2px; transition:color 0.2s;
+  }
+  .toggle-eye:hover { color:var(--accent); }
 
   .code-box {
     background:var(--bg); border:1px solid var(--accent); border-radius:7px;
@@ -282,6 +290,19 @@
     cursor:pointer; transition:all 0.2s; margin-top:12px; width:auto;
   }
   .btn-back:hover { border-color:var(--accent); color:var(--accent); }
+
+  .room-code {
+    font-size:32px;
+    font-weight:700;
+    letter-spacing:4px;
+    background:var(--bg);
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
+    margin:10px 0;
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--accent);
+  }
 </style>
 </head>
 <body>
@@ -306,11 +327,11 @@
 </header>
 
 <main>
-  <!-- LOGIN SCREEN -->
+  <!-- ÉCRAN DE CRÉATION/REJOINTE AVEC MOT DE PASSE -->
   <div id="login-screen">
     <div class="card">
       <div class="card-section">
-        <div class="section-label">🔐 Accès sécurisé</div>
+        <div class="section-label">🔐 Chat sécurisé par mot de passe</div>
         <div class="field">
           <label class="fl">👤 Votre pseudo</label>
           <input type="text" id="login-pseudo" placeholder="Ex: Alice, Bob..." maxlength="20" autocomplete="off">
@@ -318,51 +339,42 @@
       </div>
 
       <div class="card-section">
-        <div class="section-label">🔑 Session</div>
-        <div class="field">
-          <label class="fl">Code de session (optionnel)</label>
-          <input type="text" id="login-session" placeholder="Laissez vide pour créer une nouvelle session" maxlength="10" style="text-transform:uppercase;letter-spacing:0.2em" autocomplete="off">
+        <div class="section-label">🔑 Mot de passe de la salle</div>
+        <div class="secret-wrap">
+          <input type="password" id="room-password" placeholder="Entrez un mot de passe pour créer/rejoindre une salle" autocomplete="off">
+          <button class="toggle-eye" id="toggle-eye" type="button">
+            <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
         </div>
         <div class="info-msg" style="margin-top:8px">
-          💡 Astuce : Donnez votre code à un ami pour chatter !<br>
-          🔒 Les messages sont chiffrés avec AES-256
+          💡 Deux options :<br>
+          • <strong>Créer</strong> : entrez un mot de passe et cliquez "Créer/Rejoindre"<br>
+          • <strong>Rejoindre</strong> : entrez le même mot de passe que votre ami
         </div>
       </div>
 
-      <button class="btn btn-primary" id="login-btn">🎯 Rejoindre / Créer</button>
+      <button class="btn btn-primary" id="login-btn">🎯 Créer / Rejoindre la salle</button>
     </div>
   </div>
 
-  <!-- CONNECT SCREEN -->
-  <div id="connect-screen" style="display:none">
+  <!-- ÉCRAN D'ATTENTE (en attendant qu'un pair se connecte) -->
+  <div id="wait-screen" style="display:none">
     <div class="card">
-      <button class="btn-back" id="back-to-login" style="position:absolute; top:15px; left:15px;">← Retour</button>
-
-      <div class="card-section" style="margin-top:20px">
-        <div class="section-label">🎫 Votre code de connexion</div>
-        <div class="code-box" id="my-code-box" title="Cliquer pour copier">
-          <span id="code-text">• • •</span>
-        </div>
-        <div class="code-hint">↑ Donnez ce code à votre pair · Cliquer pour copier</div>
-      </div>
-
       <div class="card-section">
-        <div class="section-label">🤝 Rejoindre un pair</div>
-
-        <div class="field">
-          <label class="fl">Code du pair</label>
-          <input type="text" id="peer-code-input" placeholder="ex: K7XP2M" maxlength="10"
-            style="text-transform:uppercase;letter-spacing:0.2em" autocomplete="off">
+        <div class="section-label">⏳ En attente d'un pair...</div>
+        <div class="info-msg" style="margin-bottom:15px">
+          🔑 Mot de passe de la salle :
         </div>
-
-        <div class="security-note">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Chiffrement <strong style="color:var(--accent)">AES-256</strong> automatique. Aucune clé à partager, la connexion est sécurisée par défaut.</span>
+        <div class="room-code" id="room-code-display">••••••</div>
+        <div class="code-hint" style="margin-top:10px">
+          Donnez ce mot de passe à votre ami pour qu'il vous rejoigne !
         </div>
-
-        <button class="btn btn-primary" id="connect-btn" disabled>▶ Se connecter</button>
-        <div class="error-msg" id="error-msg"></div>
       </div>
+      <button class="btn-back" id="cancel-wait" style="width:100%; margin-top:10px;">✕ Annuler</button>
+      <div class="error-msg" id="wait-error"></div>
     </div>
   </div>
 
@@ -371,7 +383,7 @@
     <div class="chat-bar">
       <div class="peer-info">
         <div class="peer-name-display" id="peer-display">—</div>
-        <div class="session-meta">Session : <span id="sess-code">—</span></div>
+        <div class="session-meta">Salle : <span id="room-name">—</span></div>
       </div>
       <div class="enc-badge">
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -401,36 +413,26 @@ var peer      = null;
 var conn      = null;
 var myName    = '';
 var peerName  = '';
-var myCode    = '';
+var roomPassword = '';
+var roomHash  = '';      // Hash du mot de passe utilisé comme ID PeerJS
 var typingTimer   = null;
 var isTyping      = false;
 var typingEl      = null;
 var connTimeout   = null;
-var currentSessionCode = '';
-
-// Clé de chiffrement fixe pour simplifier (peut être dérivée du code de session)
-// Utilisation d'une clé dérivée du code de session pour que chaque conversation ait son propre chiffrement
-function getEncryptionKey() {
-  // Dérive une clé à partir du code de session + salt fixe
-  // Comme ça chaque conversation a son propre chiffrement sans clé à partager
-  return CryptoJS.SHA256(currentSessionCode + 'netchat_salt_2024').toString();
-}
+var isCreator     = false;  // Si vrai, on attend une connexion entrante
 
 // ══════════════════════════════
 // DOM
 // ══════════════════════════════
 var loginScreen    = document.getElementById('login-screen');
+var waitScreen     = document.getElementById('wait-screen');
 var loginPseudo    = document.getElementById('login-pseudo');
-var loginSession   = document.getElementById('login-session');
+var roomPasswordInput = document.getElementById('room-password');
 var loginBtn       = document.getElementById('login-btn');
-
-var connectScreen  = document.getElementById('connect-screen');
-var myCodeBox      = document.getElementById('my-code-box');
-var codeText       = document.getElementById('code-text');
-var peerCodeInput  = document.getElementById('peer-code-input');
-var connectBtn     = document.getElementById('connect-btn');
-var errorMsgEl     = document.getElementById('error-msg');
-var backToLogin    = document.getElementById('back-to-login');
+var toggleEye      = document.getElementById('toggle-eye');
+var eyeIcon        = document.getElementById('eye-icon');
+var cancelWait     = document.getElementById('cancel-wait');
+var roomCodeDisplay = document.getElementById('room-code-display');
 
 var statusDot      = document.getElementById('status-dot');
 var statusTextEl   = document.getElementById('status-text');
@@ -439,19 +441,18 @@ var messagesEl     = document.getElementById('messages');
 var msgInput       = document.getElementById('msg-input');
 var sendBtn        = document.getElementById('send-btn');
 var peerDisplay    = document.getElementById('peer-display');
-var sessCode       = document.getElementById('sess-code');
+var roomNameSpan   = document.getElementById('room-name');
 var disconnBtn     = document.getElementById('disconnect-btn');
 var loadOverlay    = document.getElementById('loading');
 var loadTxt        = document.getElementById('load-txt');
+var waitError      = document.getElementById('wait-error');
 
 // ══════════════════════════════
 // UTILS
 // ══════════════════════════════
-function genCode() {
-  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  var code = '';
-  for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+function hashPassword(pwd) {
+  // Convertir le mot de passe en hash pour l'utiliser comme ID PeerJS
+  return CryptoJS.SHA256(pwd + 'netchat_salt').toString().substring(0, 10).toUpperCase();
 }
 
 function setStatus(state, label) {
@@ -459,8 +460,17 @@ function setStatus(state, label) {
   statusTextEl.textContent = label;
 }
 
-function showError(msg) { errorMsgEl.textContent = msg; errorMsgEl.style.display = 'block'; }
-function hideError()    { errorMsgEl.style.display = 'none'; }
+function showError(msg, element) {
+  var target = element || document.getElementById('error-msg');
+  if (target) {
+    target.textContent = msg;
+    target.style.display = 'block';
+  }
+}
+function hideError(element) {
+  var target = element || document.getElementById('error-msg');
+  if (target) target.style.display = 'none';
+}
 function showLoading(msg) { loadTxt.textContent = msg; loadOverlay.style.display = 'flex'; }
 function hideLoading()    { loadOverlay.style.display = 'none'; }
 
@@ -475,17 +485,19 @@ function esc(s) {
 }
 
 // ══════════════════════════════
-// CRYPTO - Utilise la clé dérivée du code session
+// CRYPTO - Clé dérivée du mot de passe
 // ══════════════════════════════
+function getEncryptionKey() {
+  return CryptoJS.SHA256(roomPassword).toString();
+}
+
 function aesEncrypt(text) {
-  var key = getEncryptionKey();
-  return CryptoJS.AES.encrypt(text, key).toString();
+  return CryptoJS.AES.encrypt(text, getEncryptionKey()).toString();
 }
 
 function aesDecrypt(cipher) {
   try {
-    var key = getEncryptionKey();
-    var bytes  = CryptoJS.AES.decrypt(cipher, key);
+    var bytes = CryptoJS.AES.decrypt(cipher, getEncryptionKey());
     var result = bytes.toString(CryptoJS.enc.Utf8);
     return result || null;
   } catch(e) { return null; }
@@ -541,7 +553,7 @@ function handleData(raw) {
 
   var plain = aesDecrypt(raw.enc);
   if (!plain) {
-    addSystemMsg('⚠ Erreur de déchiffrement.');
+    addSystemMsg('⚠ Erreur de déchiffrement - mot de passe incorrect ?');
     return;
   }
 
@@ -584,11 +596,11 @@ function setupConn() {
 // ══════════════════════════════
 function onConnected() {
   setStatus('online', 'Connecté');
-  connectScreen.style.display = 'none';
-  chatScreen.style.display    = 'flex';
-  peerDisplay.textContent     = peerName;
-  sessCode.textContent        = currentSessionCode || myCode;
-  sendBtn.disabled            = false;
+  waitScreen.style.display = 'none';
+  chatScreen.style.display = 'flex';
+  peerDisplay.textContent = peerName;
+  roomNameSpan.textContent = '••••••';
+  sendBtn.disabled = false;
   msgInput.focus();
   addSystemMsg('✓ AES-256 actif · Connecté avec ' + peerName);
 }
@@ -642,87 +654,63 @@ function handleDisconnect(byPeer) {
       : '✕ Vous avez quitté la conversation');
 
     setTimeout(function() {
-      chatScreen.style.display    = 'none';
-      connectScreen.style.display = 'none';
-      loginScreen.style.display   = 'flex';
-      messagesEl.innerHTML        = '';
-      sendBtn.disabled            = true;
-      peerCodeInput.value         = '';
+      chatScreen.style.display = 'none';
+      loginScreen.style.display = 'flex';
+      waitScreen.style.display = 'none';
+      messagesEl.innerHTML = '';
+      sendBtn.disabled = true;
       conn = null; peerName = '';
+      if (peer) { peer.destroy(); peer = null; }
       setStatus('ready', 'Prêt');
     }, 1500);
   }
 }
 
 // ══════════════════════════════
-// CONNECT BUTTON
+// CONNECTION ENTRANTE (quand on est créateur)
 // ══════════════════════════════
-connectBtn.addEventListener('click', function() {
-  var code = peerCodeInput.value.trim().toUpperCase();
-
-  if (!code)           { showError('Entrez le code du pair'); return; }
-  if (code === myCode) { showError('Vous ne pouvez pas vous connecter à vous-même'); return; }
-
-  hideError();
-  setStatus('connecting', 'Connexion...');
-  showLoading('Connexion en cours...');
-
-  conn = peer.connect(code, { reliable: true, serialization: 'json' });
-  setupConn();
-
-  connTimeout = setTimeout(function() {
-    if (!conn || !conn.open) {
-      conn = null;
-      hideLoading();
-      setStatus('ready', 'Prêt');
-      showError('Code introuvable — vérifiez le code et réessayez.');
+function setupIncomingConnection() {
+  peer.on('connection', function(incoming) {
+    if (conn) { 
+      incoming.close(); 
+      return; 
     }
-  }, 10000);
-});
+    
+    conn = incoming;
+    setStatus('connecting', 'Connexion...');
+    showLoading('Connexion établie...');
+    setupConn();
+  });
+}
 
 // ══════════════════════════════
-// COPY CODE
-// ══════════════════════════════
-myCodeBox.addEventListener('click', function() {
-  if (!myCode) return;
-  navigator.clipboard.writeText(myCode).then(function() {
-    codeText.textContent = 'COPIÉ !';
-    myCodeBox.style.background = 'rgba(0,229,160,0.15)';
-    setTimeout(function() {
-      codeText.textContent = myCode;
-      myCodeBox.style.background = '';
-    }, 1400);
-  }).catch(function() {});
-});
-
-// ══════════════════════════════
-// LOGIN HANDLER
+// LOGIN HANDLER - Soit on crée, soit on rejoint
 // ══════════════════════════════
 loginBtn.addEventListener('click', function() {
   var pseudo = loginPseudo.value.trim();
-  var sessionCode = loginSession.value.trim().toUpperCase();
+  var password = roomPasswordInput.value;
 
   if (!pseudo) {
-    var errorDiv = document.createElement('div');
-    errorDiv.className = 'error-msg';
-    errorDiv.textContent = '⚠ Veuillez entrer un pseudo';
-    errorDiv.style.display = 'block';
-    document.querySelector('#login-screen .card').appendChild(errorDiv);
-    setTimeout(function() { errorDiv.remove(); }, 2000);
+    showError('⚠ Veuillez entrer un pseudo', document.getElementById('error-msg'));
+    return;
+  }
+  if (!password) {
+    showError('⚠ Veuillez entrer un mot de passe', document.getElementById('error-msg'));
     return;
   }
 
   myName = pseudo;
-  currentSessionCode = sessionCode || genCode();
-  myCode = currentSessionCode;
+  roomPassword = password;
+  roomHash = hashPassword(password);
 
   if (peer) {
     peer.destroy();
   }
 
-  showLoading('Connexion au réseau P2P...');
+  showLoading('Connexion au réseau...');
 
-  peer = new Peer(myCode, {
+  // Tentative de création/connection avec ce hash comme ID
+  peer = new Peer(roomHash, {
     host: '0.peerjs.com',
     port: 443,
     path: '/',
@@ -731,69 +719,68 @@ loginBtn.addEventListener('click', function() {
   });
 
   peer.on('open', function(id) {
-    myCode = id;
-    codeText.textContent = myCode;
-    setStatus('ready', 'Prêt');
-    connectBtn.disabled = false;
     hideLoading();
-
+    // On a réussi à créer/prendre cet ID
+    isCreator = true;
+    setStatus('ready', 'En attente');
+    
+    // Afficher l'écran d'attente
     loginScreen.style.display = 'none';
-    connectScreen.style.display = 'flex';
+    waitScreen.style.display = 'flex';
+    roomCodeDisplay.textContent = '••••••'; // On cache le vrai hash par sécurité
+    waitError.style.display = 'none';
+    
+    // Attendre une connexion entrante
+    setupIncomingConnection();
   });
 
   peer.on('error', function(err) {
     hideLoading();
     console.error('PeerJS error:', err);
-
+    
     if (err.type === 'unavailable-id') {
-      var newCode = genCode();
-      currentSessionCode = newCode;
-      myCode = newCode;
-      peer.destroy();
-
-      peer = new Peer(myCode, {
-        host: '0.peerjs.com',
-        port: 443,
-        path: '/',
-        secure: true,
-        debug: 0
-      });
-
-      peer.on('open', function(id) {
-        myCode = id;
-        codeText.textContent = myCode;
-        setStatus('ready', 'Prêt');
-        connectBtn.disabled = false;
-        hideLoading();
-        loginScreen.style.display = 'none';
-        connectScreen.style.display = 'flex';
-      });
+      // L'ID est déjà pris → on essaie de se connecter en tant que client
+      isCreator = false;
+      setStatus('connecting', 'Connexion...');
+      
+      // Se connecter à la salle existante
+      conn = peer.connect(roomHash, { reliable: true, serialization: 'json' });
+      setupConn();
+      
+      connTimeout = setTimeout(function() {
+        if (!conn || !conn.open) {
+          conn = null;
+          hideLoading();
+          setStatus('ready', 'Prêt');
+          showError('❌ Impossible de rejoindre : mot de passe incorrect ou salle inexistante', waitError);
+          setTimeout(function() {
+            loginScreen.style.display = 'flex';
+            waitScreen.style.display = 'none';
+            waitError.style.display = 'none';
+          }, 2000);
+        }
+      }, 10000);
+      
+      // Masquer l'écran de login, montrer l'attente
+      loginScreen.style.display = 'none';
+      waitScreen.style.display = 'flex';
+      roomCodeDisplay.textContent = '••••••';
       return;
     }
-
+    
     setStatus('error', 'Erreur');
-    var errorDiv = document.createElement('div');
-    errorDiv.className = 'error-msg';
-    errorDiv.textContent = 'Erreur: ' + (err.type || 'Connexion impossible');
-    errorDiv.style.display = 'block';
-    document.querySelector('#login-screen .card').appendChild(errorDiv);
-    setTimeout(function() { errorDiv.remove(); }, 3000);
-  });
-
-  peer.on('connection', function(incoming) {
-    if (conn) { incoming.close(); return; }
-
-    conn = incoming;
-    setStatus('connecting', 'Pair entrant...');
-    showLoading('Connexion entrante...');
-    setupConn();
+    showError('Erreur: ' + (err.type || 'Connexion impossible'), waitError);
+    setTimeout(function() {
+      loginScreen.style.display = 'flex';
+      waitScreen.style.display = 'none';
+    }, 2000);
   });
 });
 
 // ══════════════════════════════
-// BACK TO LOGIN
+// CANCEL WAIT
 // ══════════════════════════════
-backToLogin.addEventListener('click', function() {
+cancelWait.addEventListener('click', function() {
   if (peer) {
     peer.destroy();
     peer = null;
@@ -802,12 +789,22 @@ backToLogin.addEventListener('click', function() {
     conn.close();
     conn = null;
   }
-  connectScreen.style.display = 'none';
+  waitScreen.style.display = 'none';
   loginScreen.style.display = 'flex';
-  loginPseudo.value = myName || '';
-  loginSession.value = '';
-  peerCodeInput.value = '';
+  roomPasswordInput.value = '';
   setStatus('ready', 'Prêt');
+  hideError(waitError);
+});
+
+// ══════════════════════════════
+// EYE TOGGLE
+// ══════════════════════════════
+toggleEye.addEventListener('click', function() {
+  var isPass = roomPasswordInput.type === 'password';
+  roomPasswordInput.type = isPass ? 'text' : 'password';
+  eyeIcon.innerHTML = isPass
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
 });
 
 // Auto-resize textarea
