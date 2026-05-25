@@ -28,6 +28,7 @@
     --muted-light: #6b7280;
     --danger: #ef4444;
     --success: #10b981;
+    --warning: #f59e0b;
     --my-bg-dark: #0f4c3c;
     --my-border-dark: rgba(16,185,129,0.2);
     --their-bg-dark: #1e3a5f;
@@ -151,7 +152,7 @@
 
   .dot { width:6px; height:6px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
   .dot.online     { background:var(--success); box-shadow:0 0 8px rgba(16,185,129,0.5); animation:pulse 2s infinite; }
-  .dot.connecting { background:#f59e0b; animation:blink 0.7s infinite; }
+  .dot.connecting { background:var(--warning); animation:blink 0.7s infinite; }
   .dot.error      { background:var(--danger); }
 
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
@@ -249,7 +250,7 @@
     font-size:12px; color:var(--accent); font-family:'Inter',sans-serif;
     margin-top:10px; padding:12px 14px;
     background:var(--accent-dim); border:1px solid var(--accent);
-    border-radius:8px; text-align:center; border-radius:8px;
+    border-radius:8px; text-align:center;
   }
 
   #chat-screen { display:none; flex:1; flex-direction:column; overflow:hidden; }
@@ -258,9 +259,28 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:12px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; gap:10px;
   }
-  .peer-info { display:flex; flex-direction:column; min-width:0; }
+
+  .peer-info { display:flex; flex-direction:column; min-width:0; flex:1; }
   .peer-name-display { font-weight:600; font-size:14px; color:var(--accent); }
-  .session-meta { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:0.05em; margin-top:2px; }
+  
+  .session-meta { 
+    font-family:'JetBrains Mono',monospace; 
+    font-size:10px; color:var(--muted); 
+    letter-spacing:0.05em; margin-top:2px;
+    display:flex; gap:12px; flex-wrap:wrap;
+  }
+
+  .network-stat {
+    display:flex; align-items:center; gap:4px;
+    padding:2px 8px;
+    background:var(--surface2);
+    border-radius:4px;
+    font-size:9px;
+  }
+
+  .network-stat.good { color:var(--success); }
+  .network-stat.warning { color:var(--warning); }
+  .network-stat.bad { color:var(--danger); }
 
   .enc-badge {
     display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace;
@@ -533,7 +553,13 @@
     <div class="chat-bar">
       <div class="peer-info">
         <div class="peer-name-display" id="peer-display">—</div>
-        <div class="session-meta">Salle : <span id="room-name">••••••</span></div>
+        <div class="session-meta">
+          Salle : <span id="room-name">••••••</span>
+          <span class="network-stat good" id="network-stat">
+            <i class="fas fa-wifi"></i>
+            <span id="latency">—</span> ms
+          </span>
+        </div>
       </div>
       <div class="enc-badge">
         <i class="fas fa-lock"></i>
@@ -575,7 +601,9 @@ var typingTimer = null;
 var isTyping = false;
 var typingEl = null;
 var connTimeout = null;
-var messageStates = {}; // Track message status: pending, sent, delivered, read
+var messageStates = {};
+var latencyValues = [];
+var latencyCheckInterval = null;
 
 // DOM
 var loginScreen = document.getElementById('login-screen');
@@ -607,6 +635,8 @@ var loginError = document.getElementById('login-error');
 var themeToggle = document.getElementById('theme-toggle');
 var emojiBtn = document.getElementById('emoji-btn');
 var emojiPicker = document.getElementById('emoji-picker');
+var latencyEl = document.getElementById('latency');
+var networkStatEl = document.getElementById('network-stat');
 
 // UTILS
 function genRandomId() {
@@ -640,6 +670,42 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// NETWORK MONITORING
+function startLatencyMonitoring() {
+  if (latencyCheckInterval) clearInterval(latencyCheckInterval);
+  
+  latencyCheckInterval = setInterval(() => {
+    if (conn && conn.open) {
+      var startTime = Date.now();
+      sendEnc({ type: 'ping', timestamp: startTime });
+    }
+  }, 3000);
+}
+
+function stopLatencyMonitoring() {
+  if (latencyCheckInterval) {
+    clearInterval(latencyCheckInterval);
+    latencyCheckInterval = null;
+  }
+}
+
+function updateLatencyDisplay(latency) {
+  latencyValues.push(latency);
+  if (latencyValues.length > 5) latencyValues.shift();
+  
+  const avgLatency = Math.round(latencyValues.reduce((a, b) => a + b, 0) / latencyValues.length);
+  latencyEl.textContent = avgLatency;
+  
+  // Color based on quality
+  if (avgLatency < 50) {
+    networkStatEl.className = 'network-stat good';
+  } else if (avgLatency < 150) {
+    networkStatEl.className = 'network-stat warning';
+  } else {
+    networkStatEl.className = 'network-stat bad';
+  }
+}
+
 // THEME TOGGLE
 function toggleTheme() {
   const html = document.documentElement;
@@ -654,7 +720,6 @@ function updateThemeIcon() {
   icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
 }
 
-// Initialize theme from localStorage
 function initTheme() {
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme === 'light') {
@@ -804,6 +869,11 @@ function handleData(raw) {
     updateMsgStatus(data.id, 'delivered');
   } else if (data.type === 'msg_read') {
     updateMsgStatus(data.id, 'read');
+  } else if (data.type === 'ping') {
+    sendEnc({ type: 'pong', timestamp: data.timestamp });
+  } else if (data.type === 'pong') {
+    var latency = Date.now() - data.timestamp;
+    updateLatencyDisplay(latency);
   } else if (data.type === 'typing') {
     showTypingEl();
   } else if (data.type === 'stop_typing') {
@@ -819,6 +889,7 @@ function setupConn() {
     clearTimeout(connTimeout);
     hideLoading();
     sendEnc({ type: 'handshake', name: myName });
+    startLatencyMonitoring();
   });
   conn.on('data', handleData);
   conn.on('close', function() { handleDisconnect(true); });
@@ -853,7 +924,6 @@ function sendMsg() {
   setTimeout(() => updateMsgStatus(msgId, 'sent'), 100);
 }
 
-// Track focus for read receipts
 messagesEl.addEventListener('scroll', () => {
   const lastMsg = messagesEl.lastElementChild;
   if (lastMsg && lastMsg.classList.contains('msg-wrap') && lastMsg.classList.contains('theirs')) {
@@ -889,6 +959,7 @@ disconnBtn.addEventListener('click', function() {
 function handleDisconnect(byPeer) {
   removeTypingEl();
   hideLoading();
+  stopLatencyMonitoring();
   clearTimeout(connTimeout);
   if (chatScreen.style.display === 'flex') {
     addSystemMsg(byPeer ? '✕ ' + peerName + ' a quitté' : '✕ Vous avez quitté');
@@ -902,6 +973,8 @@ function handleDisconnect(byPeer) {
       if (peer) { peer.destroy(); peer = null; }
       setStatus('ready', 'Prêt');
       messageStates = {};
+      latencyValues = [];
+      latencyEl.textContent = '—';
     }, 1500);
   }
 }
